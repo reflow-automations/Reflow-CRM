@@ -10,6 +10,7 @@ import { CRMPage } from '@/components/crm/CRMPage'
 import { ICEPage } from '@/components/ice/ICEPage'
 import { GoogleTasksPage } from '@/components/tasks/GoogleTasksPage'
 import { TimeOverviewPage } from '@/components/time-tracking/TimeOverviewPage'
+import { ResetPasswordDialog } from '@/components/auth/ResetPasswordDialog'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { Loader2 } from 'lucide-react'
 
@@ -23,7 +24,7 @@ const queryClient = new QueryClient({
 })
 
 function AppRoutes() {
-  const { loading } = useAuth()
+  const { loading, needsPasswordReset, clearPasswordReset } = useAuth()
 
   if (loading) {
     return (
@@ -37,6 +38,8 @@ function AppRoutes() {
   }
 
   return (
+    <>
+    {needsPasswordReset && <ResetPasswordDialog onDone={clearPasswordReset} />}
     <Routes>
       <Route path="login" element={<LoginPage />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -48,6 +51,7 @@ function AppRoutes() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
 
