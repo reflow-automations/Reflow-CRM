@@ -1,9 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { LogIn, UserPlus, Loader2 } from 'lucide-react'
 
 export function LoginPage() {
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, user } = useAuth()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (user) navigate('/', { replace: true })
+  }, [user, navigate])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
