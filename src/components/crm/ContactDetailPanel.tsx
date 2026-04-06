@@ -135,6 +135,13 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
             <span className="text-[12px] text-text-dim w-24 shrink-0">Tijd</span>
             <TimeTracker contactId={contact.id} totalMinutes={contactMinutes} />
           </div>
+
+          {contact.notes && (
+            <div className="flex items-start justify-between py-1 gap-3">
+              <span className="text-[12px] text-text-dim w-24 shrink-0 mt-0.5">Notitie</span>
+              <span className="text-[12px] text-text-muted text-right leading-relaxed">{contact.notes}</span>
+            </div>
+          )}
         </div>
 
         <div className="h-px bg-border/50 mb-4" />
