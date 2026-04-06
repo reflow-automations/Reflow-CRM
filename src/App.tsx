@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { GoogleAuthProvider } from '@/contexts/GoogleAuthContext'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { LoginPage } from '@/components/auth/LoginPage'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -61,6 +62,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+          <GoogleAuthProvider>
           <AppRoutes />
           <Toaster
             position="bottom-right"
@@ -72,6 +74,7 @@ export default function App() {
               },
             }}
           />
+        </GoogleAuthProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

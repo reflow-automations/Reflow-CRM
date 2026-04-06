@@ -5,6 +5,10 @@ import { STATUS_CONFIG, PRIORITY_CONFIG, SOURCE_CONFIG } from '@/lib/constants'
 import { NotesTimeline } from './NotesTimeline'
 import { useSubtasks, useCreateSubtask, useToggleSubtask, useDeleteSubtask } from '@/hooks/useSubtasks'
 import { useTimeTotals } from '@/hooks/useTimeTracking'
+import { useTaskContactLinks, useUnlinkTaskFromContact } from '@/hooks/useTaskContactLinks'
+import { useGoogleTasks, useCompleteGoogleTask } from '@/hooks/useGoogleTasks'
+import { useGoogleAuth } from '@/contexts/GoogleAuthContext'
+import { GoogleTaskDialog } from '@/components/tasks/GoogleTaskDialog'
 import { TimeTracker } from '@/components/shared/TimeTracker'
 import { formatRelativeDate, isOverdue, cn } from '@/lib/utils'
 
@@ -25,6 +29,14 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
   const deleteSubtask = useDeleteSubtask()
   const { data: timeTotals = {} } = useTimeTotals()
   const contactMinutes = timeTotals[contact.id] || 0
+  const { isAuthenticated } = useGoogleAuth()
+  const { data: taskLinks = [] } = useTaskContactLinks(contact.id)
+  const firstLink = taskLinks[0]
+  const taskListId = firstLink?.google_task_list_id || null
+  const { data: googleTasks = [] } = useGoogleTasks(taskListId)
+  const completeGoogleTask = useCompleteGoogleTask()
+  const unlinkTask = useUnlinkTaskFromContact()
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false)
   const [addingSubtask, setAddingSubtask] = useState(false)
   const [newSubtaskName, setNewSubtaskName] = useState('')
   const subtaskInputRef = useRef<HTMLInputElement>(null)
@@ -227,6 +239,83 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
         </div>
 
         <div className="h-px bg-border/50 mb-4" />
+
+        {/* Google Tasks */}
+        {isAuthenticated && (
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-[12px] font-semibold text-text-muted uppercase tracking-wider">
+                Google Tasks {taskLinks.length > 0 && `(${taskLinks.length})`}
+              </h4>
+              <button
+                onClick={() => setTaskDialogOpen(true)}
+                className="text-text-dim hover:text-primary transition-colors"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-0.5">
+              {taskLinks.map((link) => {
+                const task = googleTasks.find((t) => t.id === link.google_task_id)
+                if (!task) return null
+                const isCompleted = task.status === 'completed'
+                return (
+                  <div key={link.id} className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-light/60 transition-colors">
+                    <button
+                      onClick={() => taskListId && completeGoogleTask.mutate({
+                        taskListId,
+                        taskId: task.id,
+                        completed: !isCompleted,
+                      })}
+                      className={cn(
+                        'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+                        isCompleted
+                          ? 'border-primary bg-primary text-midnight'
+                          : 'border-border hover:border-primary/50'
+                      )}
+                    >
+                      {isCompleted && <Check size={10} />}
+                    </button>
+                    <span className={cn(
+                      'flex-1 text-[12px] truncate',
+                      isCompleted ? 'line-through text-text-dim' : 'text-text-muted'
+                    )}>
+                      {task.title}
+                    </span>
+                    {task.due && (
+                      <span className={cn(
+                        'text-[10px] shrink-0',
+                        isOverdue(task.due.split('T')[0]) && !isCompleted ? 'text-danger' : 'text-text-dim'
+                      )}>
+                        {formatRelativeDate(task.due.split('T')[0])}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => unlinkTask.mutate(link.id)}
+                      className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                )
+              })}
+
+              {taskLinks.length === 0 && (
+                <p className="text-[11px] text-text-dim px-2 py-1">Geen gekoppelde taken</p>
+              )}
+            </div>
+
+            <GoogleTaskDialog
+              open={taskDialogOpen}
+              onClose={() => setTaskDialogOpen(false)}
+              taskListId={taskListId || '@default'}
+              existingContactId={contact.id}
+            />
+          </div>
+        )}
+
+        {isAuthenticated && <div className="h-px bg-border/50 mb-4" />}
 
         {/* Notes */}
         <NotesTimeline contactId={contact.id} />
