@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, List, LayoutGrid, Calendar, Loader2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Plus, List, LayoutGrid, Calendar, Loader2, Download } from 'lucide-react'
 import { useContacts } from '@/hooks/useContacts'
 import type { Contact } from '@/types/contacts'
 import type { ContactStatus } from '@/lib/constants'
@@ -11,14 +12,13 @@ import { BoardView } from './board-view/BoardView'
 import { CalendarView } from './calendar-view/CalendarView'
 import { useDeleteContact } from '@/hooks/useContacts'
 import { cn } from '@/lib/utils'
+import { exportContactsCSV } from '@/lib/csv'
 
 type ViewMode = 'list' | 'board' | 'calendar'
 
 export type SortField = 'name' | 'company' | 'next_follow_up' | 'priority' | 'source'
 export type SortDir = 'asc' | 'desc'
 export interface SortEntry { field: SortField; dir: SortDir }
-
-const PRIORITY_ORDER: Record<string, number> = { high: 0, normal: 1, low: 2 }
 
 const SORT_STORAGE_KEY = 'crm-sort-order'
 
@@ -39,6 +39,7 @@ const VIEW_TABS: { key: ViewMode; label: string; icon: typeof List }[] = [
 export function CRMPage() {
   const { data: contacts = [], isLoading } = useContacts()
   const deleteContact = useDeleteContact()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [view, setView] = useState<ViewMode>('list')
   const [filter, setFilter] = useState({
@@ -56,6 +57,18 @@ export function CRMPage() {
   useEffect(() => {
     localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(sorts))
   }, [sorts])
+
+  // Open contact from URL param (e.g. from dashboard click)
+  useEffect(() => {
+    const contactId = searchParams.get('contact')
+    if (contactId && contacts.length > 0) {
+      const found = contacts.find(c => c.id === contactId)
+      if (found) {
+        setSelectedContact(found)
+        setSearchParams({}, { replace: true })
+      }
+    }
+  }, [searchParams, contacts, setSearchParams])
 
   const handleToggleSort = (field: SortField) => {
     setSorts((prev) => {
@@ -130,13 +143,22 @@ export function CRMPage() {
             ))}
           </div>
         </div>
-        <button
-          onClick={() => { setEditingContact(null); setDefaultStatus('contacted'); setDialogOpen(true) }}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-[13px] font-semibold text-midnight hover:bg-primary-hover transition-colors"
-        >
-          <Plus size={14} />
-          Task
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportContactsCSV(contacts)}
+            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[13px] font-medium text-text-muted hover:bg-surface-light transition-colors"
+          >
+            <Download size={14} />
+            Export
+          </button>
+          <button
+            onClick={() => { setEditingContact(null); setDefaultStatus('contacted'); setDialogOpen(true) }}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-[13px] font-semibold text-midnight hover:bg-primary-hover transition-colors"
+          >
+            <Plus size={14} />
+            Task
+          </button>
+        </div>
       </div>
 
       {/* Filters (only for list view) */}

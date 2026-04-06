@@ -1,7 +1,11 @@
-import { X, Mail, Phone, Globe, Link2, Calendar, Pencil, Trash2, Flag } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { X, Mail, Phone, Globe, Link2, Calendar, Pencil, Trash2, Flag, Euro, Plus, Check } from 'lucide-react'
 import type { Contact } from '@/types/contacts'
 import { STATUS_CONFIG, PRIORITY_CONFIG, SOURCE_CONFIG } from '@/lib/constants'
 import { NotesTimeline } from './NotesTimeline'
+import { useSubtasks, useCreateSubtask, useToggleSubtask, useDeleteSubtask } from '@/hooks/useSubtasks'
+import { useTimeTotals } from '@/hooks/useTimeTracking'
+import { TimeTracker } from '@/components/shared/TimeTracker'
 import { formatRelativeDate, isOverdue, cn } from '@/lib/utils'
 
 interface ContactDetailPanelProps {
@@ -15,6 +19,29 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
   const statusConfig = STATUS_CONFIG[contact.status]
   const priorityConfig = PRIORITY_CONFIG[contact.priority]
   const sourceConfig = SOURCE_CONFIG[contact.source]
+  const { data: subtasks = [] } = useSubtasks(contact.id)
+  const createSubtask = useCreateSubtask()
+  const toggleSubtask = useToggleSubtask()
+  const deleteSubtask = useDeleteSubtask()
+  const { data: timeTotals = {} } = useTimeTotals()
+  const contactMinutes = timeTotals[contact.id] || 0
+  const [addingSubtask, setAddingSubtask] = useState(false)
+  const [newSubtaskName, setNewSubtaskName] = useState('')
+  const subtaskInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (addingSubtask && subtaskInputRef.current) subtaskInputRef.current.focus()
+  }, [addingSubtask])
+
+  const handleCreateSubtask = () => {
+    const name = newSubtaskName.trim()
+    if (!name) { setAddingSubtask(false); return }
+    createSubtask.mutate({ contactId: contact.id, name })
+    setNewSubtaskName('')
+  }
+
+  const formatEuro = (value: number) =>
+    new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value)
 
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex w-[400px] flex-col border-l border-border bg-surface shadow-2xl shadow-black/40">
@@ -81,6 +108,21 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
               </span>
             </div>
           )}
+
+          {contact.deal_value != null && (
+            <div className="flex items-center justify-between py-1">
+              <span className="text-[12px] text-text-dim w-24 shrink-0">Dealwaarde</span>
+              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-green-400">
+                <Euro size={12} />
+                {formatEuro(contact.deal_value)}
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between py-1">
+            <span className="text-[12px] text-text-dim w-24 shrink-0">Tijd</span>
+            <TimeTracker contactId={contact.id} totalMinutes={contactMinutes} />
+          </div>
         </div>
 
         <div className="h-px bg-border/50 mb-4" />
@@ -114,6 +156,74 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
           {!contact.email && !contact.phone && !contact.linkedin_url && !contact.website && (
             <p className="text-[12px] text-text-dim px-2 py-1">Geen contactgegevens</p>
           )}
+        </div>
+
+        <div className="h-px bg-border/50 mb-4" />
+
+        {/* Subtasks */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-[12px] font-semibold text-text-muted uppercase tracking-wider">
+              Subtasks {subtasks.length > 0 && `(${subtasks.filter(s => s.completed).length}/${subtasks.length})`}
+            </h4>
+            <button
+              onClick={() => setAddingSubtask(true)}
+              className="text-text-dim hover:text-primary transition-colors"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+
+          <div className="space-y-0.5">
+            {subtasks.map((subtask) => (
+              <div key={subtask.id} className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-light/60 transition-colors">
+                <button
+                  onClick={() => toggleSubtask.mutate({ id: subtask.id, completed: !subtask.completed })}
+                  className={cn(
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+                    subtask.completed
+                      ? 'border-primary bg-primary text-midnight'
+                      : 'border-border hover:border-primary/50'
+                  )}
+                >
+                  {subtask.completed && <Check size={10} />}
+                </button>
+                <span className={cn(
+                  'flex-1 text-[12px]',
+                  subtask.completed ? 'line-through text-text-dim' : 'text-text-muted'
+                )}>
+                  {subtask.name}
+                </span>
+                <button
+                  onClick={() => deleteSubtask.mutate(subtask.id)}
+                  className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            ))}
+
+            {addingSubtask && (
+              <div className="px-2 py-1">
+                <input
+                  ref={subtaskInputRef}
+                  value={newSubtaskName}
+                  onChange={(e) => setNewSubtaskName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateSubtask()
+                    if (e.key === 'Escape') { setNewSubtaskName(''); setAddingSubtask(false) }
+                  }}
+                  onBlur={handleCreateSubtask}
+                  placeholder="Subtask naam..."
+                  className="w-full bg-transparent border-b border-primary/40 outline-none text-[12px] text-text-muted py-0.5 placeholder:text-text-dim"
+                />
+              </div>
+            )}
+
+            {subtasks.length === 0 && !addingSubtask && (
+              <p className="text-[11px] text-text-dim px-2 py-1">Geen subtasks</p>
+            )}
+          </div>
         </div>
 
         <div className="h-px bg-border/50 mb-4" />

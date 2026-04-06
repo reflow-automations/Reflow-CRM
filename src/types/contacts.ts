@@ -15,6 +15,7 @@ export interface Contact {
   notes: string | null
   linkedin_url: string | null
   website: string | null
+  deal_value: number | null
   created_at: string
   updated_at: string
 }
@@ -42,6 +43,7 @@ export interface ContactFormData {
   status: ContactStatus
   linkedin_url: string
   website: string
+  deal_value: string
 }
 
 export interface Subtask {
@@ -78,4 +80,5 @@ export const EMPTY_CONTACT_FORM: ContactFormData = {
   status: 'contacted',
   linkedin_url: '',
   website: '',
+  deal_value: '',
 }

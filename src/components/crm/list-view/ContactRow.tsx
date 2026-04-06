@@ -1,6 +1,6 @@
 import { Flag, ChevronRight, ChevronDown } from 'lucide-react'
 import type { Contact } from '@/types/contacts'
-import { PRIORITY_CONFIG, SOURCE_CONFIG, STATUS_CONFIG, STATUS_ORDER, type ContactPriority, type ContactSource, type ContactStatus } from '@/lib/constants'
+import { PRIORITY_CONFIG, SOURCE_CONFIG, STATUS_CONFIG, STATUS_ORDER } from '@/lib/constants'
 import { useUpdateContact } from '@/hooks/useContacts'
 import { InlineText } from '@/components/shared/InlineText'
 import { InlineTextarea } from '@/components/shared/InlineTextarea'
@@ -36,7 +36,7 @@ const STATUS_OPTIONS = STATUS_ORDER.map(key => ({
   dotColor: STATUS_CONFIG[key].dotColor,
 }))
 
-export function ContactRow({ contact, onClick, subtaskCount, expanded, onToggleExpand, totalMinutes }: ContactRowProps) {
+export function ContactRow({ contact, onClick: _onClick, subtaskCount, expanded, onToggleExpand, totalMinutes }: ContactRowProps) {
   const priorityConfig = PRIORITY_CONFIG[contact.priority]
   const updateContact = useUpdateContact()
 

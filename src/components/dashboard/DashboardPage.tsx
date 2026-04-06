@@ -1,4 +1,5 @@
-import { LayoutDashboard, Users, CalendarClock, Lightbulb, TrendingUp } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Users, CalendarClock, Lightbulb, TrendingUp, Euro } from 'lucide-react'
 import { useContacts } from '@/hooks/useContacts'
 import { useICEItems } from '@/hooks/useICEItems'
 import { STATUS_CONFIG, type ContactStatus } from '@/lib/constants'
@@ -7,6 +8,7 @@ import { isOverdue, formatRelativeDate, cn } from '@/lib/utils'
 export function DashboardPage() {
   const { data: contacts = [] } = useContacts()
   const { data: iceItems = [] } = useICEItems()
+  const navigate = useNavigate()
 
   const statusCounts = contacts.reduce<Record<ContactStatus, number>>((acc, c) => {
     acc[c.status] = (acc[c.status] || 0) + 1
@@ -21,6 +23,21 @@ export function DashboardPage() {
 
   const topICEItems = iceItems.filter((i) => i.status !== 'done').slice(0, 5)
 
+  const pipelineValue = contacts
+    .filter((c) => c.status === 'negotiation' || c.status === 'contacted')
+    .reduce((sum, c) => sum + (c.deal_value ?? 0), 0)
+
+  const wonValue = contacts
+    .filter((c) => c.status === 'won')
+    .reduce((sum, c) => sum + (c.deal_value ?? 0), 0)
+
+  const formatEuro = (value: number) =>
+    new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value)
+
+  const goToContact = (contactId: string) => {
+    navigate(`/crm?contact=${contactId}`)
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,11 +46,11 @@ export function DashboardPage() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="flex items-center gap-3 mb-3">
             <div className="rounded-lg bg-primary/15 p-2"><Users size={18} className="text-primary" /></div>
-            <span className="text-sm text-text-muted">Totaal contacten</span>
+            <span className="text-sm text-text-muted">Contacten</span>
           </div>
           <p className="font-display text-3xl font-bold">{contacts.length}</p>
         </div>
@@ -47,7 +64,7 @@ export function DashboardPage() {
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="flex items-center gap-3 mb-3">
             <div className="rounded-lg bg-orange-500/15 p-2"><CalendarClock size={18} className="text-orange-400" /></div>
-            <span className="text-sm text-text-muted">In negotiation</span>
+            <span className="text-sm text-text-muted">Negotiation</span>
           </div>
           <p className="font-display text-3xl font-bold text-orange-400">{statusCounts.negotiation || 0}</p>
         </div>
@@ -57,6 +74,16 @@ export function DashboardPage() {
             <span className="text-sm text-text-muted">Overdue</span>
           </div>
           <p className="font-display text-3xl font-bold text-danger">{overdueContacts.length}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="rounded-lg bg-green-500/15 p-2"><Euro size={18} className="text-green-400" /></div>
+            <span className="text-sm text-text-muted">Pipeline</span>
+          </div>
+          <p className="font-display text-xl font-bold text-green-400">{formatEuro(pipelineValue)}</p>
+          {wonValue > 0 && (
+            <p className="text-[11px] text-text-dim mt-1">Won: {formatEuro(wonValue)}</p>
+          )}
         </div>
       </div>
 
@@ -72,7 +99,11 @@ export function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {upcomingFollowUps.map((contact) => (
-                <div key={contact.id} className="flex items-center justify-between rounded-lg bg-surface-light px-3 py-2">
+                <div
+                  key={contact.id}
+                  onClick={() => goToContact(contact.id)}
+                  className="flex items-center justify-between rounded-lg bg-surface-light px-3 py-2 cursor-pointer hover:bg-surface-hover transition-colors"
+                >
                   <div className="flex items-center gap-2">
                     <span className={cn('h-2.5 w-2.5 rounded-full shrink-0', STATUS_CONFIG[contact.status]?.dotColor)} />
                     <div>
@@ -94,7 +125,11 @@ export function DashboardPage() {
               </h4>
               <div className="space-y-2">
                 {overdueContacts.slice(0, 5).map((contact) => (
-                  <div key={contact.id} className="flex items-center justify-between rounded-lg border border-danger/20 bg-danger-muted px-3 py-2">
+                  <div
+                    key={contact.id}
+                    onClick={() => goToContact(contact.id)}
+                    className="flex items-center justify-between rounded-lg border border-danger/20 bg-danger-muted px-3 py-2 cursor-pointer hover:bg-danger/15 transition-colors"
+                  >
                     <div className="flex items-center gap-2">
                       <span className={cn('h-2.5 w-2.5 rounded-full shrink-0', STATUS_CONFIG[contact.status]?.dotColor)} />
                       <p className="text-sm font-medium text-text-main">{contact.name}</p>

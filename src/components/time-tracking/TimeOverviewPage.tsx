@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
-import { Clock, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
+import { Clock, ChevronDown, ChevronRight, Trash2, Download } from 'lucide-react'
 import { useAllTimeEntries, useDeleteTimeEntry } from '@/hooks/useTimeTracking'
 import { formatDuration, cn } from '@/lib/utils'
+import { exportTimeEntriesCSV } from '@/lib/csv'
 
 type Preset = 'this_week' | 'this_month' | 'last_month' | 'custom'
 
@@ -98,11 +99,22 @@ export function TimeOverviewPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-text-main font-[family-name:var(--font-display)]">
-          Time Tracking
-        </h1>
-        <p className="text-sm text-text-dim mt-1">Overzicht van alle bijgehouden uren</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-text-main font-[family-name:var(--font-display)]">
+            Time Tracking
+          </h1>
+          <p className="text-sm text-text-dim mt-1">Overzicht van alle bijgehouden uren</p>
+        </div>
+        {entries.length > 0 && (
+          <button
+            onClick={() => exportTimeEntriesCSV(entries)}
+            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[13px] font-medium text-text-muted hover:bg-surface-light transition-colors"
+          >
+            <Download size={14} />
+            Export
+          </button>
+        )}
       </div>
 
       {/* Filter bar */}

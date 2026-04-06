@@ -1,6 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Lightbulb, CheckSquare, Clock } from 'lucide-react'
+import { LayoutDashboard, Users, Lightbulb, CheckSquare, Clock, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
+import { useContacts } from '@/hooks/useContacts'
+import { isBefore, startOfDay } from 'date-fns'
 
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -11,6 +14,13 @@ const NAV_ITEMS = [
 ]
 
 export function Sidebar() {
+  const { signOut, user } = useAuth()
+  const { data: contacts } = useContacts()
+
+  const overdueCount = contacts?.filter(c =>
+    c.next_follow_up && isBefore(new Date(c.next_follow_up), startOfDay(new Date()))
+  ).length ?? 0
+
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-surface" style={{ width: '240px' }}>
       {/* Logo */}
@@ -40,10 +50,26 @@ export function Sidebar() {
             }
           >
             <Icon size={18} />
-            {label}
+            <span className="flex-1">{label}</span>
+            {to === '/crm' && overdueCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[11px] font-bold text-white">
+                {overdueCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
+
+      {/* User + Sign out */}
+      <div className="border-t border-border px-4 py-3">
+        <button
+          onClick={() => signOut()}
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-[13px] text-text-muted transition-colors hover:bg-surface-light hover:text-text-main"
+        >
+          <LogOut size={16} />
+          <span className="flex-1 truncate text-left">{user?.email ?? 'Uitloggen'}</span>
+        </button>
+      </div>
 
       {/* Branding */}
       <div className="border-t border-border px-6 py-4">

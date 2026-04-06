@@ -3,11 +3,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { LoginPage } from '@/components/auth/LoginPage'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { DashboardPage } from '@/components/dashboard/DashboardPage'
 import { CRMPage } from '@/components/crm/CRMPage'
 import { ICEPage } from '@/components/ice/ICEPage'
 import { GoogleTasksPage } from '@/components/tasks/GoogleTasksPage'
 import { TimeOverviewPage } from '@/components/time-tracking/TimeOverviewPage'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { Loader2 } from 'lucide-react'
 
 const queryClient = new QueryClient({
@@ -35,7 +38,8 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route element={<AppLayout />}>
+      <Route path="login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="crm" element={<CRMPage />} />
         <Route path="ice" element={<ICEPage />} />
@@ -49,6 +53,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
@@ -66,5 +71,6 @@ export default function App() {
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
+    </ErrorBoundary>
   )
 }

@@ -1,4 +1,4 @@
-import { Search, Filter, X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { STATUS_CONFIG, PRIORITY_CONFIG, SOURCE_CONFIG, type ContactStatus } from '@/lib/constants'
 
 interface ContactFiltersProps {

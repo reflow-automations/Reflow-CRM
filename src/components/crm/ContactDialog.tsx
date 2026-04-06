@@ -31,6 +31,7 @@ export function ContactDialog({ open, onClose, contact, defaultStatus }: Contact
         status: contact.status,
         linkedin_url: contact.linkedin_url ?? '',
         website: contact.website ?? '',
+        deal_value: contact.deal_value != null ? String(contact.deal_value) : '',
       })
     } else {
       setForm({ ...EMPTY_CONTACT_FORM, status: defaultStatus ?? 'contacted' })
@@ -41,10 +42,15 @@ export function ContactDialog({ open, onClose, contact, defaultStatus }: Contact
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const { deal_value: dealStr, ...rest } = form
+    const payload = {
+      ...rest,
+      deal_value: dealStr ? Number(dealStr) : null,
+    }
     if (isEditing) {
-      await updateContact.mutateAsync({ id: contact.id, ...form })
+      await updateContact.mutateAsync({ id: contact.id, ...payload } as any)
     } else {
-      await createContact.mutateAsync(form)
+      await createContact.mutateAsync(payload as any)
     }
     onClose()
   }
@@ -130,6 +136,20 @@ export function ContactDialog({ open, onClose, contact, defaultStatus }: Contact
                   className="w-full rounded-lg border border-border bg-surface-light px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
+            </div>
+
+            {/* Deal value */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-muted">Dealwaarde (EUR)</label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={form.deal_value}
+                onChange={(e) => updateField('deal_value', e.target.value)}
+                className="w-full rounded-lg border border-border bg-surface-light px-3 py-2 text-sm text-text-main placeholder:text-text-dim focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="0"
+              />
             </div>
 
             {/* Status */}
