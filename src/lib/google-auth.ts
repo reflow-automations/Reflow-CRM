@@ -1,4 +1,4 @@
-const SCOPE = 'https://www.googleapis.com/auth/tasks'
+const SCOPE = 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar.readonly'
 const STORAGE_KEY = 'goog_tasks_token'
 
 interface StoredToken {

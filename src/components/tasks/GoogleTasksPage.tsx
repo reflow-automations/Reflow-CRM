@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { CheckSquare, Plus, Search, LogOut, Loader2, Eye, EyeOff } from 'lucide-react'
+import { CheckSquare, Plus, Search, LogOut, Loader2, Eye, EyeOff, ArrowUpDown } from 'lucide-react'
 import { useGoogleAuth } from '@/contexts/GoogleAuthContext'
 import { useTaskLists, useGoogleTasks, useCompleteGoogleTask, useDeleteGoogleTask } from '@/hooks/useGoogleTasks'
 import { useAllTaskContactLinks } from '@/hooks/useTaskContactLinks'
@@ -16,7 +16,8 @@ export function GoogleTasksPage() {
   const { data: contacts = [] } = useContacts()
 
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
-  const [showCompleted, setShowCompleted] = useState(true)
+  const [showCompleted, setShowCompleted] = useState(false)
+  const [sortBy, setSortBy] = useState<'position' | 'due'>('position')
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<GoogleTask | null>(null)
@@ -55,8 +56,20 @@ export function GoogleTasksPage() {
           t.notes?.toLowerCase().includes(q)
       )
     }
+    // Sort
+    list = [...list]
+    if (sortBy === 'due') {
+      list.sort((a, b) => {
+        const aDue = a.due ? new Date(a.due).getTime() : Infinity
+        const bDue = b.due ? new Date(b.due).getTime() : Infinity
+        return aDue - bDue
+      })
+    } else {
+      // Google Tasks 'position' is a lexicographic string, sort ascending
+      list.sort((a, b) => (a.position || '').localeCompare(b.position || ''))
+    }
     return list
-  }, [tasks, showCompleted, search])
+  }, [tasks, showCompleted, search, sortBy])
 
   const handleToggle = (task: GoogleTask) => {
     if (!activeListId) return
@@ -173,6 +186,18 @@ export function GoogleTasksPage() {
             placeholder="Zoek taken..."
             className="w-full rounded-lg border border-border bg-surface-light pl-9 pr-3 py-2 text-sm text-text-main placeholder:text-text-dim focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
+        </div>
+
+        <div className="relative flex items-center gap-1.5 rounded-lg border border-border bg-surface-light px-3 py-2 text-sm text-text-muted">
+          <ArrowUpDown size={13} />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'position' | 'due')}
+            className="bg-transparent text-sm text-text-muted focus:outline-none cursor-pointer"
+          >
+            <option value="position">Google volgorde</option>
+            <option value="due">Deadline</option>
+          </select>
         </div>
 
         <button
