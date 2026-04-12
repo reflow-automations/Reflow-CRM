@@ -1,5 +1,6 @@
 const SCOPE = 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar.readonly'
 const STORAGE_KEY = 'goog_tasks_token'
+const HAD_CONSENT_KEY = 'goog_tasks_had_consent'
 
 interface StoredToken {
   access_token: string
@@ -29,7 +30,7 @@ export function loadGoogleScript(): Promise<void> {
   return scriptPromise
 }
 
-export function requestGoogleToken(): Promise<string> {
+export function requestGoogleToken(silent = false): Promise<string> {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
   if (!clientId) throw new Error('Missing VITE_GOOGLE_CLIENT_ID environment variable')
 
@@ -48,6 +49,7 @@ export function requestGoogleToken(): Promise<string> {
           expires_at: Date.now() + response.expires_in * 1000,
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+        localStorage.setItem(HAD_CONSENT_KEY, '1')
         resolve(response.access_token)
       },
       error_callback: (error) => {
@@ -55,8 +57,20 @@ export function requestGoogleToken(): Promise<string> {
       },
     })
 
-    client.requestAccessToken()
+    // Silent mode: empty prompt = reuse existing consent without UI if possible
+    client.requestAccessToken(silent ? { prompt: '' } : {})
   })
+}
+
+export function trySilentRefresh(): Promise<string | null> {
+  // Only try silent refresh if user has ever connected before
+  if (!localStorage.getItem(HAD_CONSENT_KEY)) return Promise.resolve(null)
+  return requestGoogleToken(true)
+    .then((token) => {
+      localStorage.setItem(HAD_CONSENT_KEY, '1')
+      return token
+    })
+    .catch(() => null)
 }
 
 export function getStoredToken(): string | null {

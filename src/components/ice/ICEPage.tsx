@@ -49,6 +49,7 @@ export function ICEPage() {
           const q = search.toLowerCase()
           if (!item.title.toLowerCase().includes(q) && !item.description?.toLowerCase().includes(q)) return false
         }
+        if (statusFilter === 'all' && item.status === 'done') return false
         if (statusFilter !== 'all' && item.status !== statusFilter) return false
         if (bucketFilters.size > 0 && !item.buckets?.some((b) => bucketFilters.has(b))) return false
         if (item.priority_score < minScore) return false
@@ -159,7 +160,7 @@ export function ICEPage() {
         <div className="rounded-xl border border-border bg-surface p-5">
           <h3 className="font-display text-base font-semibold mb-2">ICE Scoring Framework</h3>
           <p className="text-sm text-text-muted mb-3">
-            Score = (Impact x Importance) / (Time x Difficulty) x 10. Hogere impact/importance en lagere time/difficulty geven een hogere score.
+            Score = (Impact x Importance) / √(Time x Difficulty) x 10. Hogere impact/importance en lagere time/difficulty geven een hogere score.
           </p>
           <div className="grid grid-cols-4 gap-3 text-xs">
             <div className="rounded-lg bg-primary/10 p-3">
@@ -464,7 +465,7 @@ export function ICEPage() {
               <div className="rounded-lg bg-surface-light px-4 py-3 text-center">
                 <span className="text-xs text-text-dim">Geschatte score: </span>
                 <span className="font-display text-lg font-bold text-primary">
-                  {((form.impact * form.importance) / Math.max(form.time_estimate * form.difficulty, 1) * 10).toFixed(1)}
+                  {((form.impact * form.importance) / Math.max(Math.sqrt(form.time_estimate * form.difficulty), 1) * 10).toFixed(1)}
                 </span>
               </div>
               <div className="flex justify-end gap-3 pt-2">

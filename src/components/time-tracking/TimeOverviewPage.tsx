@@ -201,43 +201,79 @@ export function TimeOverviewPage() {
                   </span>
                 </button>
 
-                {isExpanded && (
-                  <div className="px-5 pb-3">
-                    {group.entries.map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="group flex items-center gap-3 py-2 pl-6 text-[12px] border-t border-border/20"
-                      >
-                        <Clock size={11} className="text-text-dim shrink-0" />
-                        <span className="text-text-muted font-medium min-w-[60px]">
-                          {formatDuration(entry.duration_minutes)}
-                        </span>
-                        <span className="text-text-dim">
-                          {new Date(entry.created_at).toLocaleDateString('nl-NL', {
-                            weekday: 'short', day: 'numeric', month: 'short',
-                          })}
-                        </span>
-                        {entry.started_at && entry.ended_at && (
-                          <span className="text-text-dim">
-                            {new Date(entry.started_at).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
-                            {' — '}
-                            {new Date(entry.ended_at).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        )}
-                        {entry.description && (
-                          <span className="text-text-dim truncate">{entry.description}</span>
-                        )}
-                        <div className="flex-1" />
-                        <button
-                          onClick={() => deleteEntry.mutate(entry.id)}
-                          className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {isExpanded && (() => {
+                  // Group entries by day
+                  const byDay = new Map<string, { total: number; entries: typeof group.entries; date: Date }>()
+                  for (const entry of group.entries) {
+                    const d = new Date(entry.started_at || entry.created_at)
+                    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+                    if (!byDay.has(key)) byDay.set(key, { total: 0, entries: [], date: d })
+                    const bucket = byDay.get(key)!
+                    bucket.total += entry.duration_minutes
+                    bucket.entries.push(entry)
+                  }
+                  const days = Array.from(byDay.values()).sort((a, b) => b.date.getTime() - a.date.getTime())
+                  return (
+                    <div className="px-5 pb-3">
+                      {days.map((day, idx) => {
+                        const hasMultiple = day.entries.length > 1
+                        return (
+                          <div key={idx}>
+                            {hasMultiple && (
+                              <div className="flex items-center gap-3 pt-2.5 pb-1 pl-6 text-[11px] border-t border-border/20">
+                                <span className="uppercase tracking-wider font-semibold text-text-dim">
+                                  {day.date.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                </span>
+                                <div className="flex-1 h-px bg-border/30" />
+                                <span className="text-[11px] font-semibold text-primary/80">
+                                  {formatDuration(day.total)} totaal
+                                </span>
+                              </div>
+                            )}
+                            {day.entries.map((entry) => (
+                              <div
+                                key={entry.id}
+                                className={cn(
+                                  'group flex items-center gap-3 py-2 pl-6 text-[12px]',
+                                  !hasMultiple && 'border-t border-border/20'
+                                )}
+                              >
+                                <Clock size={11} className="text-text-dim shrink-0" />
+                                <span className="text-text-muted font-medium min-w-[60px]">
+                                  {formatDuration(entry.duration_minutes)}
+                                </span>
+                                {!hasMultiple && (
+                                  <span className="text-text-dim">
+                                    {new Date(entry.created_at).toLocaleDateString('nl-NL', {
+                                      weekday: 'short', day: 'numeric', month: 'short',
+                                    })}
+                                  </span>
+                                )}
+                                {entry.started_at && entry.ended_at && (
+                                  <span className="text-text-dim">
+                                    {new Date(entry.started_at).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
+                                    {' — '}
+                                    {new Date(entry.ended_at).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                )}
+                                {entry.description && (
+                                  <span className="text-text-dim truncate">{entry.description}</span>
+                                )}
+                                <div className="flex-1" />
+                                <button
+                                  onClick={() => deleteEntry.mutate(entry.id)}
+                                  className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </div>
             )
           })}

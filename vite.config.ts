@@ -10,4 +10,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    fs: {
+      // Allow both the real path and any junction that points here
+      allow: [
+        path.resolve(__dirname),
+        'C:/Reflow automations/Cursor gemini vibe coding folder/CRM Reflow',
+      ],
+    },
+  },
 })

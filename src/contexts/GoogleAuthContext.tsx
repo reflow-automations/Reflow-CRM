@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { loadGoogleScript, requestGoogleToken, getStoredToken, clearGoogleToken } from '@/lib/google-auth'
+import { loadGoogleScript, requestGoogleToken, getStoredToken, clearGoogleToken, trySilentRefresh } from '@/lib/google-auth'
 import { toast } from 'sonner'
 
 interface GoogleAuthContextType {
@@ -18,15 +18,35 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadGoogleScript()
-      .then(() => {
+      .then(async () => {
         const token = getStoredToken()
-        if (token) setAccessToken(token)
+        if (token) {
+          setAccessToken(token)
+          return
+        }
+        // No valid token — try silent refresh if user ever consented
+        const refreshed = await trySilentRefresh()
+        if (refreshed) setAccessToken(refreshed)
       })
       .catch(() => {
         // Script load failure is non-fatal — user can try connecting later
       })
       .finally(() => setIsLoading(false))
   }, [])
+
+  // Periodic silent refresh ~5 min before expiry
+  useEffect(() => {
+    if (!accessToken) return
+    const interval = setInterval(async () => {
+      const token = getStoredToken()
+      if (!token) {
+        const refreshed = await trySilentRefresh()
+        if (refreshed) setAccessToken(refreshed)
+        else setAccessToken(null)
+      }
+    }, 60_000)
+    return () => clearInterval(interval)
+  }, [accessToken])
 
   const signInWithGoogle = async () => {
     try {
