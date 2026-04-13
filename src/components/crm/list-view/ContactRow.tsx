@@ -166,6 +166,19 @@ export function ContactRow({ contact, onClick, subtaskCount, expanded, onToggleE
           placeholder="—"
         />
       </td>
+
+      {/* Deal value */}
+      <td className="px-4 py-2.5 whitespace-nowrap overflow-hidden">
+        <InlineText
+          value={contact.deal_value ? `€${contact.deal_value.toLocaleString('nl-NL')}` : ''}
+          onSave={(v) => {
+            const num = v ? Number(v.replace(/[^0-9]/g, '')) : null
+            handleUpdate('deal_value', num as unknown as string)
+          }}
+          className={cn('text-[12px] font-medium', contact.deal_value ? 'text-green-400' : 'text-text-dim')}
+          placeholder="—"
+        />
+      </td>
     </tr>
   )
 }

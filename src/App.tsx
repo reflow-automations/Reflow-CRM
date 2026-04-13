@@ -11,6 +11,7 @@ import { CRMPage } from '@/components/crm/CRMPage'
 import { ICEPage } from '@/components/ice/ICEPage'
 import { GoogleTasksPage } from '@/components/tasks/GoogleTasksPage'
 import { TimeOverviewPage } from '@/components/time-tracking/TimeOverviewPage'
+import { DemoPage } from '@/components/demo/DemoPage'
 import { ResetPasswordDialog } from '@/components/auth/ResetPasswordDialog'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { Loader2 } from 'lucide-react'
@@ -43,6 +44,7 @@ function AppRoutes() {
     {needsPasswordReset && <ResetPasswordDialog onDone={clearPasswordReset} />}
     <Routes>
       <Route path="login" element={<LoginPage />} />
+      <Route path="demo" element={<DemoPage />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="crm" element={<CRMPage />} />

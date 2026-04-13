@@ -58,9 +58,10 @@ export const COLUMNS: ColDef[] = [
   { field: 'priority', label: 'Priority', defaultWidth: 90, minWidth: 70 },
   { field: 'source', label: 'Source', defaultWidth: 130, minWidth: 90 },
   { field: null, label: 'Email', defaultWidth: 160, minWidth: 110 },
+  { field: null, label: 'Deal', defaultWidth: 100, minWidth: 70 },
 ]
 
-const STORAGE_KEY = 'crm-column-widths-v2'
+const STORAGE_KEY = 'crm-column-widths-v3'
 const DEFAULT_WIDTHS = COLUMNS.map(c => c.defaultWidth)
 
 function loadWidths(): number[] {
