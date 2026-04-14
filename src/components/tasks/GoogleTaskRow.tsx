@@ -1,6 +1,6 @@
 import { Check, Pencil, Trash2, Link2 } from 'lucide-react'
 import type { GoogleTask } from '@/types/google-tasks'
-import { formatRelativeDate, isOverdue, cn } from '@/lib/utils'
+import { formatRelativeDate, isOverdue, isDueToday, cn } from '@/lib/utils'
 
 interface GoogleTaskRowProps {
   task: GoogleTask
@@ -50,7 +50,8 @@ export function GoogleTaskRow({ task, contactName, onToggle, onEdit, onDelete }:
       {dueDate && (
         <span className={cn(
           'shrink-0 text-[11px] font-medium',
-          isOverdue(dueDate) && !isCompleted ? 'text-danger' : 'text-text-dim'
+          isOverdue(dueDate) && !isCompleted ? 'text-danger' :
+          isDueToday(dueDate) && !isCompleted ? 'text-yellow-400' : 'text-text-dim'
         )}>
           {formatRelativeDate(dueDate)}
         </span>

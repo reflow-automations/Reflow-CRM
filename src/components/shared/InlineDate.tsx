@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
-import { formatRelativeDate, isOverdue, cn } from '@/lib/utils'
+import { formatRelativeDate, isOverdue, isDueToday, cn } from '@/lib/utils'
 
 interface InlineDateProps {
   value: string | null
@@ -85,6 +85,7 @@ export function InlineDate({ value, onSave }: InlineDateProps) {
   const triggerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const overdue = isOverdue(value)
+  const dueToday = isDueToday(value)
 
   const today = new Date(); today.setHours(0,0,0,0)
   const [viewYear, setViewYear] = useState(today.getFullYear())
@@ -149,7 +150,7 @@ export function InlineDate({ value, onSave }: InlineDateProps) {
         {value ? (
           <span className={cn(
             'inline-flex items-center gap-1.5 text-[12px] font-medium',
-            overdue ? 'text-danger' : 'text-text-muted'
+            overdue ? 'text-danger' : dueToday ? 'text-yellow-400' : 'text-text-muted'
           )}>
             <Calendar size={12} />
             {formatRelativeDate(value)}

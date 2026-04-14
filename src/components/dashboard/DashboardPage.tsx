@@ -3,7 +3,7 @@ import { Users, CalendarClock, Lightbulb, TrendingUp, Euro } from 'lucide-react'
 import { useContacts } from '@/hooks/useContacts'
 import { useICEItems } from '@/hooks/useICEItems'
 import { STATUS_CONFIG, type ContactStatus } from '@/lib/constants'
-import { isOverdue, formatRelativeDate, cn } from '@/lib/utils'
+import { isOverdue, isDueToday, formatRelativeDate, cn } from '@/lib/utils'
 
 export function DashboardPage() {
   const { data: contacts = [] } = useContacts()
@@ -111,7 +111,7 @@ export function DashboardPage() {
                       <p className="text-[11px] text-text-dim">{contact.company}</p>
                     </div>
                   </div>
-                  <span className="text-xs text-text-muted">{formatRelativeDate(contact.next_follow_up)}</span>
+                  <span className={cn('text-xs', isDueToday(contact.next_follow_up) ? 'text-yellow-400 font-medium' : 'text-text-muted')}>{formatRelativeDate(contact.next_follow_up)}</span>
                 </div>
               ))}
             </div>

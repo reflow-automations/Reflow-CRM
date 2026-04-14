@@ -10,7 +10,7 @@ import { useGoogleTasks, useCompleteGoogleTask } from '@/hooks/useGoogleTasks'
 import { useGoogleAuth } from '@/contexts/GoogleAuthContext'
 import { GoogleTaskDialog } from '@/components/tasks/GoogleTaskDialog'
 import { TimeTracker } from '@/components/shared/TimeTracker'
-import { formatRelativeDate, isOverdue, cn } from '@/lib/utils'
+import { formatRelativeDate, isOverdue, isDueToday, cn } from '@/lib/utils'
 
 interface ContactDetailPanelProps {
   contact: Contact
@@ -113,7 +113,7 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
               <span className="text-[12px] text-text-dim w-24 shrink-0">Opvolging</span>
               <span className={cn(
                 'flex items-center gap-1.5 text-[12px] font-medium',
-                isOverdue(contact.next_follow_up) ? 'text-danger' : 'text-text-muted'
+                isOverdue(contact.next_follow_up) ? 'text-danger' : isDueToday(contact.next_follow_up) ? 'text-yellow-400' : 'text-text-muted'
               )}>
                 <Calendar size={12} />
                 {formatRelativeDate(contact.next_follow_up)}
@@ -293,7 +293,8 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
                     {task.due && (
                       <span className={cn(
                         'text-[10px] shrink-0',
-                        isOverdue(task.due.split('T')[0]) && !isCompleted ? 'text-danger' : 'text-text-dim'
+                        isOverdue(task.due.split('T')[0]) && !isCompleted ? 'text-danger' :
+                        isDueToday(task.due.split('T')[0]) && !isCompleted ? 'text-yellow-400' : 'text-text-dim'
                       )}>
                         {formatRelativeDate(task.due.split('T')[0])}
                       </span>

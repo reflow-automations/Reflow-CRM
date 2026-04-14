@@ -3,7 +3,7 @@ import { Calendar, Flag, Building2 } from 'lucide-react'
 import type { Contact } from '@/types/contacts'
 import { PRIORITY_CONFIG } from '@/lib/constants'
 import { SourceBadge } from '../SourceBadge'
-import { formatRelativeDate, isOverdue, cn } from '@/lib/utils'
+import { formatRelativeDate, isOverdue, isDueToday, cn } from '@/lib/utils'
 
 interface ContactCardProps {
   contact: Contact
@@ -22,6 +22,7 @@ export function ContactCard({ contact, onClick, isDragOverlay }: ContactCardProp
 
   const priorityConfig = PRIORITY_CONFIG[contact.priority]
   const overdue = isOverdue(contact.next_follow_up)
+  const dueToday = isDueToday(contact.next_follow_up)
 
   return (
     <div
@@ -52,7 +53,7 @@ export function ContactCard({ contact, onClick, isDragOverlay }: ContactCardProp
         {contact.next_follow_up && (
           <span className={cn(
             'flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[10px]',
-            overdue ? 'text-danger font-medium' : 'text-text-dim'
+            overdue ? 'text-danger font-medium' : dueToday ? 'text-yellow-400 font-medium' : 'text-text-dim'
           )}>
             <Calendar size={9} />
             {formatRelativeDate(contact.next_follow_up)}

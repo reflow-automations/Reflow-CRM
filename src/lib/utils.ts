@@ -43,6 +43,17 @@ export function isOverdue(date: string | Date | null | undefined): boolean {
   return d < today
 }
 
+export function isDueToday(date: string | Date | null | undefined): boolean {
+  if (!date) return false
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(d)
+  target.setHours(0, 0, 0, 0)
+  return target.getTime() === today.getTime()
+}
+
 export function generateId(): string {
   return crypto.randomUUID()
 }
