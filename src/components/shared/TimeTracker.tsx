@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Clock, Play, Square, Trash2 } from 'lucide-react'
+import { Clock, Play, Square, Trash2, Check } from 'lucide-react'
 import { useTimeEntries, useCreateTimeEntry, useDeleteTimeEntry } from '@/hooks/useTimeTracking'
 import { useTimer } from '@/hooks/useTimer'
 import { parseTimeInput, formatDuration, cn } from '@/lib/utils'
@@ -11,10 +11,19 @@ interface TimeTrackerProps {
   totalMinutes?: number
 }
 
+interface PendingEntry {
+  durationMinutes: number
+  startedAt: string
+  endedAt: string
+}
+
 export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrackerProps) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const [manualInput, setManualInput] = useState('')
+  const [pendingEntry, setPendingEntry] = useState<PendingEntry | null>(null)
+  const [pendingNote, setPendingNote] = useState('')
+  const noteInputRef = useRef<HTMLInputElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -27,7 +36,28 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
     (subtaskId ? activeTimer.subtaskId === subtaskId : !activeTimer.subtaskId)
 
   useEffect(() => {
-    if (!open) return
+    if (pendingEntry && noteInputRef.current) {
+      noteInputRef.current.focus()
+    }
+  }, [pendingEntry])
+
+  useEffect(() => {
+    if (!open) {
+      // Auto-save pending entry without note when dropdown closes
+      if (pendingEntry) {
+        createEntry.mutate({
+          contact_id: contactId,
+          subtask_id: subtaskId,
+          duration_minutes: pendingEntry.durationMinutes,
+          started_at: pendingEntry.startedAt,
+          ended_at: pendingEntry.endedAt,
+          description: pendingNote.trim() || null,
+        })
+        setPendingEntry(null)
+        setPendingNote('')
+      }
+      return
+    }
     const handleClick = (e: MouseEvent) => {
       if (
         triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
@@ -42,7 +72,6 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
     e.stopPropagation()
     if (!open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect()
-      // Position to the left if too close to right edge
       const left = rect.left + 300 > window.innerWidth ? rect.right - 300 : rect.left
       setPos({ top: rect.bottom + 4, left })
     }
@@ -65,17 +94,38 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
     if (isTimerActive) {
       const result = stopTimer()
       if (result) {
-        createEntry.mutate({
-          contact_id: contactId,
-          subtask_id: subtaskId,
-          duration_minutes: result.durationMinutes,
-          started_at: result.startedAt,
-          ended_at: result.endedAt,
-        })
+        setPendingEntry(result)
+        setPendingNote('')
+        // Open dropdown so user can add a note
+        if (!open && triggerRef.current) {
+          const rect = triggerRef.current.getBoundingClientRect()
+          const left = rect.left + 300 > window.innerWidth ? rect.right - 300 : rect.left
+          setPos({ top: rect.bottom + 4, left })
+          setOpen(true)
+        }
       }
     } else {
       startTimer(contactId, subtaskId)
     }
+  }
+
+  const handleSavePending = () => {
+    if (!pendingEntry) return
+    createEntry.mutate({
+      contact_id: contactId,
+      subtask_id: subtaskId,
+      duration_minutes: pendingEntry.durationMinutes,
+      started_at: pendingEntry.startedAt,
+      ended_at: pendingEntry.endedAt,
+      description: pendingNote.trim() || null,
+    })
+    setPendingEntry(null)
+    setPendingNote('')
+  }
+
+  const handleDiscardPending = () => {
+    setPendingEntry(null)
+    setPendingNote('')
   }
 
   const formatElapsed = (secs: number): string => {
@@ -153,24 +203,55 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
             </div>
           </div>
 
-          {/* Manual entry */}
-          <div className="px-4 py-3 border-b border-border/50">
-            <div className="flex items-center gap-2">
-              <input
-                value={manualInput}
-                onChange={(e) => setManualInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleManualSave() }}
-                placeholder="Enter time (ex: 3h 20m)"
-                className="flex-1 bg-surface-light border border-border rounded-md px-3 py-1.5 text-[12px] text-text-main placeholder:text-text-dim outline-none focus:border-primary/50"
-              />
-              <button
-                onClick={handleManualSave}
-                className="shrink-0 px-3 py-1.5 rounded-md bg-primary/20 text-primary text-[12px] font-medium hover:bg-primary/30 transition-colors"
-              >
-                Save
-              </button>
+          {/* Pending entry — note after timer stop */}
+          {pendingEntry && (
+            <div className="px-4 py-3 border-b border-border/50 bg-primary/5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[11px] font-medium text-text-dim uppercase tracking-wider">Opgeslagen</span>
+                <span className="text-[13px] font-bold text-primary">{formatDuration(pendingEntry.durationMinutes)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={noteInputRef}
+                  value={pendingNote}
+                  onChange={(e) => setPendingNote(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSavePending()
+                    if (e.key === 'Escape') handleDiscardPending()
+                  }}
+                  placeholder="Notitie toevoegen... (optioneel)"
+                  className="flex-1 bg-surface-light border border-border rounded-md px-3 py-1.5 text-[12px] text-text-main placeholder:text-text-dim outline-none focus:border-primary/50"
+                />
+                <button
+                  onClick={handleSavePending}
+                  className="shrink-0 w-7 h-7 rounded-md bg-primary/20 text-primary flex items-center justify-center hover:bg-primary/30 transition-colors"
+                >
+                  <Check size={13} />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Manual entry */}
+          {!pendingEntry && (
+            <div className="px-4 py-3 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <input
+                  value={manualInput}
+                  onChange={(e) => setManualInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleManualSave() }}
+                  placeholder="Enter time (ex: 3h 20m)"
+                  className="flex-1 bg-surface-light border border-border rounded-md px-3 py-1.5 text-[12px] text-text-main placeholder:text-text-dim outline-none focus:border-primary/50"
+                />
+                <button
+                  onClick={handleManualSave}
+                  className="shrink-0 px-3 py-1.5 rounded-md bg-primary/20 text-primary text-[12px] font-medium hover:bg-primary/30 transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Recent entries */}
           {recentEntries.length > 0 && (
@@ -181,16 +262,20 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
                   key={entry.id}
                   className="group flex items-center justify-between py-1.5 text-[12px]"
                 >
-                  <div className="flex items-center gap-2">
-                    <Clock size={10} className="text-text-dim" />
-                    <span className="text-text-muted font-medium">{formatDuration(entry.duration_minutes)}</span>
-                    <span className="text-text-dim">
-                      {new Date(entry.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
-                    </span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Clock size={10} className="text-text-dim shrink-0" />
+                    <span className="text-text-muted font-medium shrink-0">{formatDuration(entry.duration_minutes)}</span>
+                    {entry.description ? (
+                      <span className="text-text-dim truncate">{entry.description}</span>
+                    ) : (
+                      <span className="text-text-dim shrink-0">
+                        {new Date(entry.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => deleteEntry.mutate(entry.id)}
-                    className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all"
+                    className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all shrink-0 ml-2"
                   >
                     <Trash2 size={11} />
                   </button>
