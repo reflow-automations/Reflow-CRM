@@ -139,7 +139,7 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
           {contact.notes && (
             <div className="flex items-start justify-between py-1 gap-3">
               <span className="text-[12px] text-text-dim w-24 shrink-0 mt-0.5">Notitie</span>
-              <span className="text-[12px] text-text-muted text-right leading-relaxed">{contact.notes}</span>
+              <span className="text-[12px] text-text-muted text-right leading-relaxed whitespace-pre-wrap">{contact.notes}</span>
             </div>
           )}
         </div>
