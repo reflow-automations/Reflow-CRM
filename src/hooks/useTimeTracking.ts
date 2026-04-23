@@ -150,3 +150,18 @@ export function useDeleteTimeEntry() {
     },
   })
 }
+
+export function useUpdateTimeEntry() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, description }: { id: string; description: string | null }) => {
+      const { error } = await supabase.from('time_entries').update({ description }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time_entries'] })
+      queryClient.invalidateQueries({ queryKey: ['all_time_entries'] })
+    },
+  })
+}

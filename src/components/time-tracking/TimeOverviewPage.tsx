@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
-import { Clock, ChevronDown, ChevronRight, Trash2, Download } from 'lucide-react'
-import { useAllTimeEntries, useDeleteTimeEntry } from '@/hooks/useTimeTracking'
+import { useState, useMemo, useRef } from 'react'
+import { Clock, ChevronDown, ChevronRight, Trash2, Download, Search, X } from 'lucide-react'
+import { useAllTimeEntries, useDeleteTimeEntry, useUpdateTimeEntry } from '@/hooks/useTimeTracking'
 import { formatDuration, cn } from '@/lib/utils'
 import { exportTimeEntriesCSV } from '@/lib/csv'
 
 type Preset = 'this_week' | 'this_month' | 'last_month' | 'custom'
+type MinDuration = 0 | 15 | 30 | 60
 
 function getDateRange(preset: Preset): { from: string; to: string } {
   const now = new Date()
@@ -15,7 +16,7 @@ function getDateRange(preset: Preset): { from: string; to: string } {
     case 'this_week': {
       const d = new Date(now)
       const day = d.getDay()
-      const diff = day === 0 ? 6 : day - 1 // Monday start
+      const diff = day === 0 ? 6 : day - 1
       d.setDate(d.getDate() - diff)
       return { from: fmt(d), to: fmt(now) }
     }
@@ -42,17 +43,47 @@ export function TimeOverviewPage() {
   const [customTo, setCustomTo] = useState('')
   const [expandedContacts, setExpandedContacts] = useState<Set<string>>(new Set())
 
+  // Filters
+  const [contactFilter, setContactFilter] = useState('')
+  const [noteSearch, setNoteSearch] = useState('')
+  const [minDuration, setMinDuration] = useState<MinDuration>(0)
+
+  // Inline note editing
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editingNoteValue, setEditingNoteValue] = useState('')
+  const noteInputRef = useRef<HTMLInputElement>(null)
+
   const range = preset === 'custom'
     ? { from: customFrom || undefined, to: customTo || undefined }
     : (() => { const r = getDateRange(preset); return { from: r.from, to: r.to } })()
 
   const { data: entries = [] } = useAllTimeEntries(range as { from?: string; to?: string })
   const deleteEntry = useDeleteTimeEntry()
+  const updateEntry = useUpdateTimeEntry()
+
+  // Contact options for dropdown (from current period data)
+  const contactOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const e of entries) {
+      if (!seen.has(e.contact_id)) seen.set(e.contact_id, (e as any).contact_name || 'Unknown')
+    }
+    return Array.from(seen.entries()).sort(([, a], [, b]) => a.localeCompare(b))
+  }, [entries])
+
+  // Client-side filters
+  const filteredEntries = useMemo(() => {
+    return entries.filter(e => {
+      if (contactFilter && e.contact_id !== contactFilter) return false
+      if (minDuration > 0 && e.duration_minutes < minDuration) return false
+      if (noteSearch && !e.description?.toLowerCase().includes(noteSearch.toLowerCase())) return false
+      return true
+    })
+  }, [entries, contactFilter, minDuration, noteSearch])
 
   // Group by contact
   const grouped = useMemo(() => {
-    const map = new Map<string, { name: string; company: string; totalMinutes: number; entries: typeof entries }>()
-    for (const entry of entries) {
+    const map = new Map<string, { name: string; company: string; totalMinutes: number; entries: typeof filteredEntries }>()
+    for (const entry of filteredEntries) {
       const key = entry.contact_id
       if (!map.has(key)) {
         map.set(key, {
@@ -68,12 +99,11 @@ export function TimeOverviewPage() {
     }
     return Array.from(map.entries())
       .sort(([, a], [, b]) => b.totalMinutes - a.totalMinutes)
-  }, [entries])
+  }, [filteredEntries])
 
-  const totalMinutes = entries.reduce((sum, e) => sum + e.duration_minutes, 0)
-  const uniqueContacts = new Set(entries.map(e => e.contact_id)).size
+  const totalMinutes = filteredEntries.reduce((sum, e) => sum + e.duration_minutes, 0)
+  const uniqueContacts = new Set(filteredEntries.map(e => e.contact_id)).size
 
-  // Days in range for average
   const daysInRange = useMemo(() => {
     if (!range.from || !range.to) return 1
     const from = new Date(range.from)
@@ -90,11 +120,34 @@ export function TimeOverviewPage() {
     })
   }
 
+  const startEditNote = (id: string, current: string | null) => {
+    setEditingNoteId(id)
+    setEditingNoteValue(current ?? '')
+    setTimeout(() => noteInputRef.current?.focus(), 0)
+  }
+
+  const saveNote = (id: string) => {
+    updateEntry.mutate({ id, description: editingNoteValue.trim() || null })
+    setEditingNoteId(null)
+  }
+
+  const cancelNote = () => setEditingNoteId(null)
+
+  const hasFilters = contactFilter || noteSearch || minDuration > 0
+  const clearFilters = () => { setContactFilter(''); setNoteSearch(''); setMinDuration(0) }
+
   const presets: { key: Preset; label: string }[] = [
     { key: 'this_week', label: 'Deze week' },
     { key: 'this_month', label: 'Deze maand' },
     { key: 'last_month', label: 'Vorige maand' },
     { key: 'custom', label: 'Custom' },
+  ]
+
+  const minDurationOptions: { value: MinDuration; label: string }[] = [
+    { value: 0, label: 'Alle' },
+    { value: 15, label: '>15m' },
+    { value: 30, label: '>30m' },
+    { value: 60, label: '>1u' },
   ]
 
   return (
@@ -106,9 +159,9 @@ export function TimeOverviewPage() {
           </h1>
           <p className="text-sm text-text-dim mt-1">Overzicht van alle bijgehouden uren</p>
         </div>
-        {entries.length > 0 && (
+        {filteredEntries.length > 0 && (
           <button
-            onClick={() => exportTimeEntriesCSV(entries)}
+            onClick={() => exportTimeEntriesCSV(filteredEntries)}
             className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[13px] font-medium text-text-muted hover:bg-surface-light transition-colors"
           >
             <Download size={14} />
@@ -117,8 +170,8 @@ export function TimeOverviewPage() {
         )}
       </div>
 
-      {/* Filter bar */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
+      {/* Periode filter */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         {presets.map(p => (
           <button
             key={p.key}
@@ -149,6 +202,75 @@ export function TimeOverviewPage() {
               className="bg-surface-light border border-border rounded-md px-3 py-1.5 text-[13px] text-text-main focus:border-primary focus:outline-none"
             />
           </div>
+        )}
+      </div>
+
+      {/* Extra filters row */}
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
+        {/* Contact filter */}
+        {contactOptions.length > 1 && (
+          <select
+            value={contactFilter}
+            onChange={e => setContactFilter(e.target.value)}
+            className={cn(
+              'bg-surface-light border rounded-lg px-3 py-1.5 text-[13px] focus:outline-none focus:border-primary transition-colors',
+              contactFilter ? 'border-primary text-text-main' : 'border-border text-text-muted'
+            )}
+          >
+            <option value="">Alle klanten</option>
+            {contactOptions.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+        )}
+
+        {/* Min duration */}
+        <div className="flex items-center gap-1 bg-surface-light rounded-lg border border-border p-0.5">
+          {minDurationOptions.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setMinDuration(opt.value)}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors',
+                minDuration === opt.value
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-text-muted hover:text-text-main'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Note search */}
+        <div className="relative flex items-center">
+          <Search size={12} className="absolute left-2.5 text-text-dim pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Zoek in notities…"
+            value={noteSearch}
+            onChange={e => setNoteSearch(e.target.value)}
+            className={cn(
+              'bg-surface-light border rounded-lg pl-7 pr-3 py-1.5 text-[13px] focus:outline-none focus:border-primary transition-colors w-44',
+              noteSearch ? 'border-primary text-text-main' : 'border-border text-text-muted'
+            )}
+          />
+          {noteSearch && (
+            <button onClick={() => setNoteSearch('')} className="absolute right-2 text-text-dim hover:text-text-main">
+              <X size={11} />
+            </button>
+          )}
+        </div>
+
+        {/* Clear all filters */}
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] text-text-dim hover:text-danger transition-colors"
+          >
+            <X size={11} />
+            Filters wissen
+          </button>
         )}
       </div>
 
@@ -202,7 +324,6 @@ export function TimeOverviewPage() {
                 </button>
 
                 {isExpanded && (() => {
-                  // Group entries by day
                   const byDay = new Map<string, { total: number; entries: typeof group.entries; date: Date }>()
                   for (const entry of group.entries) {
                     const d = new Date(entry.started_at || entry.created_at)
@@ -256,13 +377,38 @@ export function TimeOverviewPage() {
                                     {new Date(entry.ended_at).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                 )}
-                                {entry.description && (
-                                  <span className="text-text-dim truncate">{entry.description}</span>
+
+                                {/* Inline note editing */}
+                                {editingNoteId === entry.id ? (
+                                  <input
+                                    ref={noteInputRef}
+                                    value={editingNoteValue}
+                                    onChange={e => setEditingNoteValue(e.target.value)}
+                                    onBlur={() => saveNote(entry.id)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') saveNote(entry.id)
+                                      if (e.key === 'Escape') cancelNote()
+                                    }}
+                                    placeholder="Notitie…"
+                                    className="flex-1 bg-surface border border-primary/50 rounded px-2 py-0.5 text-[12px] text-text-main focus:outline-none focus:border-primary min-w-0"
+                                  />
+                                ) : (
+                                  <span
+                                    onClick={() => startEditNote(entry.id, entry.description)}
+                                    className={cn(
+                                      'truncate cursor-text hover:text-text-main transition-colors',
+                                      entry.description ? 'text-text-dim' : 'text-text-dim/40 italic'
+                                    )}
+                                    title="Klik om notitie te bewerken"
+                                  >
+                                    {entry.description || 'Notitie toevoegen…'}
+                                  </span>
                                 )}
+
                                 <div className="flex-1" />
                                 <button
                                   onClick={() => deleteEntry.mutate(entry.id)}
-                                  className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all"
+                                  className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all shrink-0"
                                 >
                                   <Trash2 size={12} />
                                 </button>
