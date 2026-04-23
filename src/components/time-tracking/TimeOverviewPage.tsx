@@ -396,8 +396,10 @@ export function TimeOverviewPage() {
                                   <span
                                     onClick={() => startEditNote(entry.id, entry.description)}
                                     className={cn(
-                                      'truncate cursor-text hover:text-text-main transition-colors',
-                                      entry.description ? 'text-text-dim' : 'text-text-dim/40 italic'
+                                      'truncate cursor-text transition-colors',
+                                      entry.description
+                                        ? 'text-text-dim hover:text-text-main'
+                                        : 'text-transparent group-hover:text-text-dim/40 italic select-none'
                                     )}
                                     title="Klik om notitie te bewerken"
                                   >
