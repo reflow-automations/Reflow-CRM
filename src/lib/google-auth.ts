@@ -57,20 +57,23 @@ export function requestGoogleToken(silent = false): Promise<string> {
       },
     })
 
-    // Silent mode: empty prompt = reuse existing consent without UI if possible
-    client.requestAccessToken(silent ? { prompt: '' } : {})
+    // Silent mode: prompt:'none' fails immediately if Google can't auth without UI
+    client.requestAccessToken(silent ? { prompt: 'none' } : {})
   })
 }
 
 export function trySilentRefresh(): Promise<string | null> {
-  // Only try silent refresh if user has ever connected before
   if (!localStorage.getItem(HAD_CONSENT_KEY)) return Promise.resolve(null)
-  return requestGoogleToken(true)
-    .then((token) => {
-      localStorage.setItem(HAD_CONSENT_KEY, '1')
-      return token
-    })
-    .catch(() => null)
+
+  const timeout = new Promise<null>(resolve => setTimeout(() => resolve(null), 5_000))
+
+  return Promise.race([
+    requestGoogleToken(true).catch(() => null),
+    timeout,
+  ]).then(token => {
+    if (token) localStorage.setItem(HAD_CONSENT_KEY, '1')
+    return token
+  })
 }
 
 export function getStoredToken(): string | null {
