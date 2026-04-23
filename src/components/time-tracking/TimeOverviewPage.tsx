@@ -104,12 +104,14 @@ export function TimeOverviewPage() {
   const totalMinutes = filteredEntries.reduce((sum, e) => sum + e.duration_minutes, 0)
   const uniqueContacts = new Set(filteredEntries.map(e => e.contact_id)).size
 
-  const daysInRange = useMemo(() => {
-    if (!range.from || !range.to) return 1
-    const from = new Date(range.from)
-    const to = new Date(range.to)
-    return Math.max(1, Math.ceil((to.getTime() - from.getTime()) / 86400000) + 1)
-  }, [range])
+  const workedDays = useMemo(() => {
+    const days = new Set<string>()
+    for (const e of filteredEntries) {
+      const d = new Date(e.started_at || e.created_at)
+      days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`)
+    }
+    return Math.max(1, days.size)
+  }, [filteredEntries])
 
   const toggleContact = (id: string) => {
     setExpandedContacts(prev => {
@@ -282,7 +284,7 @@ export function TimeOverviewPage() {
         </div>
         <div className="bg-surface rounded-xl border border-border p-5">
           <div className="text-[11px] font-medium text-text-dim uppercase tracking-wider mb-1">Gem. per dag</div>
-          <div className="text-2xl font-bold text-text-main">{formatDuration(Math.round(totalMinutes / daysInRange))}</div>
+          <div className="text-2xl font-bold text-text-main">{formatDuration(Math.round(totalMinutes / workedDays))}</div>
         </div>
         <div className="bg-surface rounded-xl border border-border p-5">
           <div className="text-[11px] font-medium text-text-dim uppercase tracking-wider mb-1">Contacten</div>
