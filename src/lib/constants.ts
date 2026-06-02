@@ -1,6 +1,6 @@
 export type ContactStatus = 'won' | 'samenwerkings_partners' | 'negotiation' | 'contacted' | 'lost'
 export type ContactPriority = 'high' | 'normal' | 'low'
-export type ContactSource = 'warm_netwerk' | 'netwerk_event' | 'bni' | 'overig_koud' | 'zelf_contact'
+export type ContactSource = 'warm_netwerk' | 'netwerk_event' | 'bni' | 'overig_koud' | 'zelf_contact' | 'reflow_outreach'
 export type ICEStatus = 'todo' | 'doing' | 'done'
 export type ICEBucket =
   | 'thinking' | 'creating' | 'communicating' | 'analyzing'
@@ -28,8 +28,9 @@ export const SOURCE_CONFIG: Record<ContactSource, { label: string; color: string
   warm_netwerk:  { label: 'Warm netwerk',        color: 'text-green-400',  bgColor: 'bg-green-500/15 text-green-400' },
   netwerk_event: { label: 'Netwerk event',       color: 'text-teal-400',   bgColor: 'bg-teal-500/15 text-teal-400' },
   bni:           { label: 'BNI',                 color: 'text-pink-400',   bgColor: 'bg-pink-500/15 text-pink-400' },
-  overig_koud:   { label: 'Overig / koud',       color: 'text-orange-400', bgColor: 'bg-orange-500/15 text-orange-400' },
-  zelf_contact:  { label: 'Zelf contact gemaakt', color: 'text-lime-400',   bgColor: 'bg-lime-500/15 text-lime-400' },
+  overig_koud:    { label: 'Overig / koud',       color: 'text-orange-400', bgColor: 'bg-orange-500/15 text-orange-400' },
+  zelf_contact:   { label: 'Zelf contact gemaakt', color: 'text-lime-400',   bgColor: 'bg-lime-500/15 text-lime-400' },
+  reflow_outreach: { label: 'Reflow Outreach',     color: 'text-sky-400',    bgColor: 'bg-sky-500/15 text-sky-400' },
 }
 
 export const ICE_STATUS_CONFIG: Record<ICEStatus, { label: string; color: string; bgColor: string }> = {
