@@ -123,7 +123,7 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
 
           {contact.deal_value != null && (
             <div className="flex items-center justify-between py-1">
-              <span className="text-[12px] text-text-dim w-24 shrink-0">Dealwaarde</span>
+              <span className="text-[12px] text-text-dim w-24 shrink-0">Lifetime value</span>
               <span className="flex items-center gap-1.5 text-[12px] font-semibold text-green-400">
                 <Euro size={12} />
                 {formatEuro(contact.deal_value)}

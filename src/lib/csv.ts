@@ -12,7 +12,7 @@ export function exportContactsCSV(contacts: Contact[]) {
     Prioriteit: PRIORITY_CONFIG[c.priority]?.label ?? c.priority,
     Bron: SOURCE_CONFIG[c.source]?.label ?? c.source,
     Opvolgdatum: c.next_follow_up ?? '',
-    Dealwaarde: c.deal_value ?? '',
+    'Lifetime value': c.deal_value ?? '',
     LinkedIn: c.linkedin_url ?? '',
     Website: c.website ?? '',
     Aangemaakt: c.created_at ? new Date(c.created_at).toLocaleDateString('nl-NL') : '',

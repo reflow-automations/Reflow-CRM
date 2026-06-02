@@ -140,7 +140,7 @@ export function ContactDialog({ open, onClose, contact, defaultStatus }: Contact
 
             {/* Deal value */}
             <div>
-              <label className="mb-1 block text-sm font-medium text-text-muted">Dealwaarde (EUR)</label>
+              <label className="mb-1 block text-sm font-medium text-text-muted">Lifetime value (EUR)</label>
               <input
                 type="number"
                 min="0"

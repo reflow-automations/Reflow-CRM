@@ -167,7 +167,7 @@ export function ContactRow({ contact, onClick, subtaskCount, expanded, onToggleE
         />
       </td>
 
-      {/* Deal value */}
+      {/* Lifetime value */}
       <td className="px-4 py-2.5 whitespace-nowrap overflow-hidden">
         <InlineText
           value={contact.deal_value ? `€${contact.deal_value.toLocaleString('nl-NL')}` : ''}
