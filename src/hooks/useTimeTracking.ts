@@ -49,16 +49,22 @@ export function useAllTimeEntries(filters?: { from?: string; to?: string }) {
   })
 }
 
+/** Totals per contact for the current calendar month only (resets each month). */
 export function useTimeTotals() {
   const { user } = useAuth()
 
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthKey = `${now.getFullYear()}-${now.getMonth()}`
+
   return useQuery({
-    queryKey: ['time_totals', user?.id],
+    queryKey: ['time_totals', user?.id, monthKey],
     queryFn: async (): Promise<Record<string, number>> => {
       const { data, error } = await supabase
         .from('time_entries')
         .select('contact_id, duration_minutes')
         .eq('user_id', user!.id)
+        .gte('created_at', monthStart.toISOString())
 
       if (error) throw error
 

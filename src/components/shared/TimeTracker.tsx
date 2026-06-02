@@ -21,6 +21,7 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const [manualInput, setManualInput] = useState('')
+  const [manualNote, setManualNote] = useState('')
   const [pendingEntry, setPendingEntry] = useState<PendingEntry | null>(null)
   const [pendingNote, setPendingNote] = useState('')
   const noteInputRef = useRef<HTMLInputElement>(null)
@@ -85,8 +86,10 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
         contact_id: contactId,
         subtask_id: subtaskId,
         duration_minutes: minutes,
+        description: manualNote.trim() || null,
       })
       setManualInput('')
+      setManualNote('')
     }
   }
 
@@ -172,7 +175,7 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
           {/* Header with total */}
           <div className="px-4 py-3 border-b border-border/50">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-text-dim uppercase tracking-wider">Time on task</span>
+              <span className="text-[11px] font-medium text-text-dim uppercase tracking-wider">Deze maand</span>
               <span className="text-[14px] font-bold text-primary">
                 {formatDuration(totalMinutes)}
               </span>
@@ -234,7 +237,7 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
 
           {/* Manual entry */}
           {!pendingEntry && (
-            <div className="px-4 py-3 border-b border-border/50">
+            <div className="px-4 py-3 border-b border-border/50 space-y-2">
               <div className="flex items-center gap-2">
                 <input
                   value={manualInput}
@@ -250,6 +253,13 @@ export function TimeTracker({ contactId, subtaskId, totalMinutes = 0 }: TimeTrac
                   Save
                 </button>
               </div>
+              <input
+                value={manualNote}
+                onChange={(e) => setManualNote(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleManualSave() }}
+                placeholder="Notitie toevoegen... (optioneel)"
+                className="w-full bg-surface-light border border-border rounded-md px-3 py-1.5 text-[12px] text-text-main placeholder:text-text-dim outline-none focus:border-primary/50"
+              />
             </div>
           )}
 
