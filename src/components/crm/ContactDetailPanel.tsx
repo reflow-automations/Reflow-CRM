@@ -4,6 +4,7 @@ import type { Contact } from '@/types/contacts'
 import { STATUS_CONFIG, PRIORITY_CONFIG, SOURCE_CONFIG } from '@/lib/constants'
 import { NotesTimeline } from './NotesTimeline'
 import { useSubtasks, useCreateSubtask, useToggleSubtask, useDeleteSubtask } from '@/hooks/useSubtasks'
+import { useUpdateContact } from '@/hooks/useContacts'
 import { useTimeTotals } from '@/hooks/useTimeTracking'
 import { useTaskContactLinks, useUnlinkTaskFromContact } from '@/hooks/useTaskContactLinks'
 import { useGoogleTasks, useCompleteGoogleTask } from '@/hooks/useGoogleTasks'
@@ -41,9 +42,35 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
   const [newSubtaskName, setNewSubtaskName] = useState('')
   const subtaskInputRef = useRef<HTMLInputElement>(null)
 
+  const updateContact = useUpdateContact()
+  const [localDealValue, setLocalDealValue] = useState<number | null>(contact.deal_value)
+  const [addingValue, setAddingValue] = useState(false)
+  const [valueInput, setValueInput] = useState('')
+  const valueInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (addingSubtask && subtaskInputRef.current) subtaskInputRef.current.focus()
   }, [addingSubtask])
+
+  // Keep local value in sync when switching contacts or when fresh data arrives
+  useEffect(() => {
+    setLocalDealValue(contact.deal_value)
+  }, [contact.id, contact.deal_value])
+
+  useEffect(() => {
+    if (addingValue && valueInputRef.current) valueInputRef.current.focus()
+  }, [addingValue])
+
+  const handleAddValue = () => {
+    const add = Number(valueInput)
+    if (!isNaN(add) && add !== 0) {
+      const newTotal = (localDealValue ?? 0) + add
+      setLocalDealValue(newTotal)
+      updateContact.mutate({ id: contact.id, deal_value: newTotal } as Parameters<typeof updateContact.mutate>[0])
+    }
+    setAddingValue(false)
+    setValueInput('')
+  }
 
   const handleCreateSubtask = () => {
     const name = newSubtaskName.trim()
@@ -121,15 +148,50 @@ export function ContactDetailPanel({ contact, onClose, onEdit, onDelete }: Conta
             </div>
           )}
 
-          {contact.deal_value != null && (
-            <div className="flex items-center justify-between py-1">
-              <span className="text-[12px] text-text-dim w-24 shrink-0">Lifetime value</span>
-              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-green-400">
-                <Euro size={12} />
-                {formatEuro(contact.deal_value)}
-              </span>
-            </div>
-          )}
+          {/* Lifetime value */}
+          <div className="flex items-center justify-between py-1">
+            <span className="text-[12px] text-text-dim w-24 shrink-0">Lifetime value</span>
+            {addingValue ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[12px] text-text-dim">+ €</span>
+                <input
+                  ref={valueInputRef}
+                  type="number"
+                  value={valueInput}
+                  onChange={(e) => setValueInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddValue()
+                    if (e.key === 'Escape') { setAddingValue(false); setValueInput('') }
+                  }}
+                  placeholder="0"
+                  className="w-20 rounded-md border border-border bg-surface-light px-2 py-1 text-right text-[12px] text-text-main outline-none focus:border-primary/50"
+                />
+                <button
+                  onClick={handleAddValue}
+                  title="Optellen"
+                  className="shrink-0 rounded-md bg-primary/20 p-1 text-primary hover:bg-primary/30 transition-colors"
+                >
+                  <Check size={13} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {localDealValue != null && localDealValue !== 0 && (
+                  <span className="flex items-center gap-1.5 text-[12px] font-semibold text-green-400">
+                    <Euro size={12} />
+                    {formatEuro(localDealValue)}
+                  </span>
+                )}
+                <button
+                  onClick={() => setAddingValue(true)}
+                  title="Bedrag optellen"
+                  className="shrink-0 rounded-md p-0.5 text-text-dim hover:bg-surface-light hover:text-primary transition-colors"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center justify-between py-1">
             <span className="text-[12px] text-text-dim w-24 shrink-0">Tijd</span>
