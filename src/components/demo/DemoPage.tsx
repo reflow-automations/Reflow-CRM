@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Users, CalendarClock, Lightbulb, TrendingUp, Euro,
   LayoutDashboard, CheckSquare, Clock, List, LayoutGrid,
-  Calendar, Flag, Building2, Search, Plus, Download,
+  Calendar, Flag, Building2, Search, Plus, Download, Repeat,
 } from 'lucide-react'
 import { STATUS_CONFIG, PRIORITY_CONFIG, SOURCE_CONFIG, STATUS_ORDER, type ContactStatus, type ContactSource } from '@/lib/constants'
 import { isOverdue, formatRelativeDate, cn } from '@/lib/utils'
@@ -188,6 +188,7 @@ export function DemoPage() {
   ]
   const STATIC_NAV = [
     { icon: Lightbulb, label: 'ICE Board' },
+    { icon: Repeat, label: 'Doorlopend' },
     { icon: CheckSquare, label: 'Google Tasks' },
     { icon: Clock, label: 'Time Tracking' },
   ]

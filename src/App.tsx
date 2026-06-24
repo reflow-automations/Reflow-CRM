@@ -9,6 +9,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { DashboardPage } from '@/components/dashboard/DashboardPage'
 import { CRMPage } from '@/components/crm/CRMPage'
 import { ICEPage } from '@/components/ice/ICEPage'
+import { RecurringPage } from '@/components/recurring/RecurringPage'
 import { GoogleTasksPage } from '@/components/tasks/GoogleTasksPage'
 import { TimeOverviewPage } from '@/components/time-tracking/TimeOverviewPage'
 import { DemoPage } from '@/components/demo/DemoPage'
@@ -49,6 +50,7 @@ function AppRoutes() {
         <Route index element={<DashboardPage />} />
         <Route path="crm" element={<CRMPage />} />
         <Route path="ice" element={<ICEPage />} />
+        <Route path="doorlopend" element={<RecurringPage />} />
         <Route path="tasks" element={<GoogleTasksPage />} />
         <Route path="time" element={<TimeOverviewPage />} />
       </Route>

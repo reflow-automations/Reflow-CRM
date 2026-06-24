@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Lightbulb, CheckSquare, Clock, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Lightbulb, Repeat, CheckSquare, Clock, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { useContacts } from '@/hooks/useContacts'
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/crm', icon: Users, label: 'CRM' },
   { to: '/ice', icon: Lightbulb, label: 'ICE Board' },
+  { to: '/doorlopend', icon: Repeat, label: 'Doorlopend' },
   { to: '/tasks', icon: CheckSquare, label: 'Google Tasks' },
   { to: '/time', icon: Clock, label: 'Time Tracking' },
 ]
