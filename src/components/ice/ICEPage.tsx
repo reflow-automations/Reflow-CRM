@@ -1,10 +1,10 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
-import { Plus, Search, Loader2, Pencil, Trash2, ArrowUpDown, Info } from 'lucide-react'
+import { Plus, Search, Loader2, Pencil, Trash2, ArrowUpDown, Info, Repeat, PauseCircle, Undo2, CalendarClock } from 'lucide-react'
 import { useICEItems, useCreateICEItem, useUpdateICEItem, useDeleteICEItem } from '@/hooks/useICEItems'
-import { ICE_BUCKET_CONFIG, ICE_STATUS_CONFIG, type ICEBucket, type ICEStatus } from '@/lib/constants'
+import { ICE_BUCKET_CONFIG, ICE_STATUS_CONFIG, ICE_KIND_CONFIG, type ICEBucket, type ICEStatus, type ICEKind } from '@/lib/constants'
 import type { ICEItem, ICEFormData } from '@/types/ice'
 import { EMPTY_ICE_FORM } from '@/types/ice'
-import { cn } from '@/lib/utils'
+import { cn, formatRelativeDate } from '@/lib/utils'
 import { InlineNumber } from '@/components/shared/InlineNumber'
 import { InlineText } from '@/components/shared/InlineText'
 
@@ -37,13 +37,18 @@ export function ICEPage() {
     }, 10000)
   }, [])
 
+  // Split by kind: alleen 'oneoff' doet mee in de ICE-scoring/sortering.
+  const oneoffItems = useMemo(() => items.filter((i) => i.kind === 'oneoff'), [items])
+  const recurringItems = useMemo(() => items.filter((i) => i.kind === 'recurring'), [items])
+  const waitingItems = useMemo(() => items.filter((i) => i.kind === 'waiting'), [items])
+
   const handleScoreUpdate = (id: string, field: string, value: number) => {
     freezeCurrentOrder(filteredItems)
     updateItem.mutate({ id, [field]: value } as Parameters<typeof updateItem.mutate>[0])
   }
 
   const filteredItems = useMemo(() => {
-    const filtered = items
+    const filtered = oneoffItems
       .filter((item) => {
         if (search) {
           const q = search.toLowerCase()
@@ -67,9 +72,19 @@ export function ICEPage() {
       const bVal = b[sortBy]
       return sortDir === 'desc' ? (bVal as number) - (aVal as number) : (aVal as number) - (bVal as number)
     })
-  }, [items, search, statusFilter, bucketFilters, minScore, sortBy, sortDir, frozenOrder])
+  }, [oneoffItems, search, statusFilter, bucketFilters, minScore, sortBy, sortDir, frozenOrder])
 
-  const openDialog = (item?: ICEItem) => {
+  // Doorlopende + wachtende items: alleen op zoekterm filteren (geen score/status-filter).
+  const matchesSearch = useCallback((item: ICEItem) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return item.title.toLowerCase().includes(q) || (item.description?.toLowerCase().includes(q) ?? false)
+  }, [search])
+
+  const filteredRecurring = useMemo(() => recurringItems.filter(matchesSearch), [recurringItems, matchesSearch])
+  const filteredWaiting = useMemo(() => waitingItems.filter(matchesSearch), [waitingItems, matchesSearch])
+
+  const openDialog = (item?: ICEItem, defaultKind: ICEKind = 'oneoff') => {
     if (item) {
       setEditingItem(item)
       setForm({
@@ -81,10 +96,13 @@ export function ICEPage() {
         time_estimate: item.time_estimate,
         difficulty: item.difficulty,
         status: item.status,
+        kind: item.kind,
+        cadence: item.cadence ?? '',
+        next_due: item.next_due ?? '',
       })
     } else {
       setEditingItem(null)
-      setForm(EMPTY_ICE_FORM)
+      setForm({ ...EMPTY_ICE_FORM, kind: defaultKind })
     }
     setDialogOpen(true)
   }
@@ -124,6 +142,77 @@ export function ICEPage() {
       setSortBy(col)
       setSortDir('desc')
     }
+  }
+
+  // Compacte rij voor geparkeerde items (doorlopend / wachtend).
+  const renderParkedRow = (item: ICEItem) => {
+    const isRecurring = item.kind === 'recurring'
+    const Icon = isRecurring ? Repeat : PauseCircle
+    return (
+      <div key={item.id} className="flex items-start gap-3 border-b border-border/30 px-4 py-3 last:border-0 hover:bg-surface-light/20 transition-colors">
+        <Icon size={15} className={cn('mt-0.5 shrink-0', isRecurring ? 'text-violet-400' : 'text-amber-400')} />
+        <div className="flex-1 min-w-0">
+          <InlineText
+            value={item.title}
+            onSave={(v) => updateItem.mutate({ id: item.id, title: v })}
+            className="text-sm font-medium text-text-main"
+          />
+          <InlineText
+            value={item.description || ''}
+            onSave={(v) => updateItem.mutate({ id: item.id, description: v || null })}
+            className="text-xs text-text-dim"
+            placeholder="—"
+          />
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+            {isRecurring && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-violet-300">
+                <Repeat size={10} className="shrink-0" />
+                <InlineText
+                  value={item.cadence || ''}
+                  onSave={(v) => updateItem.mutate({ id: item.id, cadence: v || null })}
+                  placeholder="cadans toevoegen…"
+                  className="text-[11px] text-violet-300"
+                />
+              </span>
+            )}
+            {item.next_due && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-text-dim">
+                <CalendarClock size={10} /> {formatRelativeDate(item.next_due)}
+              </span>
+            )}
+            {item.buckets?.map((bucket) => {
+              const config = ICE_BUCKET_CONFIG[bucket]
+              return config ? (
+                <span key={bucket} className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', config.bgColor)}>
+                  {config.label}
+                </span>
+              ) : null
+            })}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            onClick={() => updateItem.mutate({ id: item.id, kind: 'oneoff' })}
+            title="Terug naar eenmalige taken (weer scoren)"
+            className="rounded-md p-1.5 text-text-dim hover:bg-surface-light hover:text-sky-400"
+          >
+            <Undo2 size={14} />
+          </button>
+          <button
+            onClick={() => openDialog(item)}
+            className="rounded-md p-1.5 text-text-dim hover:bg-surface-light hover:text-primary"
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            onClick={() => { if (confirm(`"${item.title}" verwijderen?`)) deleteItem.mutate(item.id) }}
+            className="rounded-md p-1.5 text-text-dim hover:bg-danger-muted hover:text-danger"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {
@@ -180,6 +269,9 @@ export function ICEPage() {
               <p className="text-text-dim">Hoe moeilijk is het? (hoger = moeilijker)</p>
             </div>
           </div>
+          <p className="mt-3 text-xs text-text-dim">
+            Alleen <span className="text-sky-400 font-medium">eenmalige</span> taken worden gescoord. Doorlopende verplichtingen en wachtende items staan apart en doen niet mee in de ranking.
+          </p>
         </div>
       )}
 
@@ -238,145 +330,222 @@ export function ICEPage() {
         </div>
       </div>
 
-      {/* Results count */}
-      <p className="text-xs text-text-dim">
-        {filteredItems.length} van {items.length} ideeën
-      </p>
+      {/* ─── Eenmalige taken (ICE-gesorteerd) ─── */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-base font-semibold flex items-center gap-2">
+            Eenmalige taken
+            <span className="text-xs font-normal text-text-dim">ICE-gesorteerd</span>
+          </h2>
+          <p className="text-xs text-text-dim">{filteredItems.length} van {oneoffItems.length}</p>
+        </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-surface-light/50">
-              <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-text-dim">Titel</th>
-              <th className="px-3 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-text-dim">Omschrijving</th>
-              <th className="px-3 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-text-dim">Buckets</th>
-              <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('impact')}>
-                <span className="inline-flex items-center gap-1">Impact <ArrowUpDown size={10} /></span>
-              </th>
-              <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('importance')}>
-                <span className="inline-flex items-center gap-1">Importance <ArrowUpDown size={10} /></span>
-              </th>
-              <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('time_estimate')}>
-                <span className="inline-flex items-center gap-1">Time <ArrowUpDown size={10} /></span>
-              </th>
-              <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('difficulty')}>
-                <span className="inline-flex items-center gap-1">Difficulty <ArrowUpDown size={10} /></span>
-              </th>
-              <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('priority_score')}>
-                <span className="inline-flex items-center gap-1">Score <ArrowUpDown size={10} /></span>
-              </th>
-              <th className="px-3 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-text-dim">Status</th>
-              <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim">Acties</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredItems.map((item) => (
-              <tr key={item.id} className="border-b border-border/30 hover:bg-surface-light/30 transition-colors">
-                <td className="px-4 py-3">
-                  <InlineText
-                    value={item.title}
-                    onSave={(v) => updateItem.mutate({ id: item.id, title: v })}
-                    className="text-sm font-medium text-text-main"
-                  />
-                </td>
-                <td className="px-3 py-3">
-                  <InlineText
-                    value={item.description || ''}
-                    onSave={(v) => updateItem.mutate({ id: item.id, description: v || null })}
-                    className="text-xs text-text-dim"
-                    placeholder="—"
-                  />
-                </td>
-                <td className="px-3 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {item.buckets?.map((bucket) => {
-                      const config = ICE_BUCKET_CONFIG[bucket]
-                      return config ? (
-                        <span key={bucket} className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', config.bgColor)}>
-                          {config.label}
-                        </span>
-                      ) : null
-                    })}
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-center">
-                  <InlineNumber value={item.impact} onSave={(v) => handleScoreUpdate(item.id, 'impact', v)} />
-                </td>
-                <td className="px-3 py-3 text-center">
-                  <InlineNumber value={item.importance} onSave={(v) => handleScoreUpdate(item.id, 'importance', v)} />
-                </td>
-                <td className="px-3 py-3 text-center">
-                  <InlineNumber value={item.time_estimate} onSave={(v) => handleScoreUpdate(item.id, 'time_estimate', v)} />
-                </td>
-                <td className="px-3 py-3 text-center">
-                  <InlineNumber value={item.difficulty} onSave={(v) => handleScoreUpdate(item.id, 'difficulty', v)} />
-                </td>
-                <td className="px-3 py-3 text-center">
-                  <span className={cn(
-                    'inline-flex h-8 min-w-[36px] items-center justify-center rounded-lg px-2 text-sm font-bold',
-                    item.priority_score >= 7 ? 'bg-green-500/20 text-green-400' :
-                    item.priority_score >= 4 ? 'bg-accent/20 text-accent' :
-                    'bg-surface-light text-text-dim'
-                  )}>
-                    {item.priority_score}
-                  </span>
-                </td>
-                <td className="px-3 py-3">
-                  <select
-                    value={item.status}
-                    onChange={(e) => updateItem.mutate({ id: item.id, status: e.target.value as ICEStatus })}
-                    className={cn(
-                      'rounded-md border-0 px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer',
-                      ICE_STATUS_CONFIG[item.status].bgColor
-                    )}
-                  >
-                    {Object.entries(ICE_STATUS_CONFIG).map(([key, config]) => (
-                      <option key={key} value={key}>{config.label}</option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-3 py-3 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <button
-                      onClick={() => openDialog(item)}
-                      className="rounded-md p-1.5 text-text-dim hover:bg-surface-light hover:text-primary"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => { if (confirm(`"${item.title}" verwijderen?`)) deleteItem.mutate(item.id) }}
-                      className="rounded-md p-1.5 text-text-dim hover:bg-danger-muted hover:text-danger"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </td>
+        {/* Table */}
+        <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-surface-light/50">
+                <th className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-text-dim">Titel</th>
+                <th className="px-3 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-text-dim">Omschrijving</th>
+                <th className="px-3 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-text-dim">Buckets</th>
+                <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('impact')}>
+                  <span className="inline-flex items-center gap-1">Impact <ArrowUpDown size={10} /></span>
+                </th>
+                <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('importance')}>
+                  <span className="inline-flex items-center gap-1">Importance <ArrowUpDown size={10} /></span>
+                </th>
+                <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('time_estimate')}>
+                  <span className="inline-flex items-center gap-1">Time <ArrowUpDown size={10} /></span>
+                </th>
+                <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('difficulty')}>
+                  <span className="inline-flex items-center gap-1">Difficulty <ArrowUpDown size={10} /></span>
+                </th>
+                <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim cursor-pointer hover:text-text-muted" onClick={() => handleSort('priority_score')}>
+                  <span className="inline-flex items-center gap-1">Score <ArrowUpDown size={10} /></span>
+                </th>
+                <th className="px-3 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-text-dim">Status</th>
+                <th className="px-3 py-3 text-center text-[11px] font-medium uppercase tracking-wider text-text-dim">Acties</th>
               </tr>
-            ))}
-            {filteredItems.length === 0 && (
-              <tr>
-                <td colSpan={10} className="py-16 text-center text-sm text-text-dim">
-                  Geen ideeën gevonden
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filteredItems.map((item) => (
+                <tr key={item.id} className="border-b border-border/30 hover:bg-surface-light/30 transition-colors">
+                  <td className="px-4 py-3">
+                    <InlineText
+                      value={item.title}
+                      onSave={(v) => updateItem.mutate({ id: item.id, title: v })}
+                      className="text-sm font-medium text-text-main"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <InlineText
+                      value={item.description || ''}
+                      onSave={(v) => updateItem.mutate({ id: item.id, description: v || null })}
+                      className="text-xs text-text-dim"
+                      placeholder="—"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {item.buckets?.map((bucket) => {
+                        const config = ICE_BUCKET_CONFIG[bucket]
+                        return config ? (
+                          <span key={bucket} className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', config.bgColor)}>
+                            {config.label}
+                          </span>
+                        ) : null
+                      })}
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <InlineNumber value={item.impact} onSave={(v) => handleScoreUpdate(item.id, 'impact', v)} />
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <InlineNumber value={item.importance} onSave={(v) => handleScoreUpdate(item.id, 'importance', v)} />
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <InlineNumber value={item.time_estimate} onSave={(v) => handleScoreUpdate(item.id, 'time_estimate', v)} />
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <InlineNumber value={item.difficulty} onSave={(v) => handleScoreUpdate(item.id, 'difficulty', v)} />
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <span className={cn(
+                      'inline-flex h-8 min-w-[36px] items-center justify-center rounded-lg px-2 text-sm font-bold',
+                      item.priority_score >= 7 ? 'bg-green-500/20 text-green-400' :
+                      item.priority_score >= 4 ? 'bg-accent/20 text-accent' :
+                      'bg-surface-light text-text-dim'
+                    )}>
+                      {item.priority_score}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3">
+                    <select
+                      value={item.status}
+                      onChange={(e) => updateItem.mutate({ id: item.id, status: e.target.value as ICEStatus })}
+                      className={cn(
+                        'rounded-md border-0 px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer',
+                        ICE_STATUS_CONFIG[item.status].bgColor
+                      )}
+                    >
+                      {Object.entries(ICE_STATUS_CONFIG).map(([key, config]) => (
+                        <option key={key} value={key}>{config.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => openDialog(item)}
+                        className="rounded-md p-1.5 text-text-dim hover:bg-surface-light hover:text-primary"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`"${item.title}" verwijderen?`)) deleteItem.mutate(item.id) }}
+                        className="rounded-md p-1.5 text-text-dim hover:bg-danger-muted hover:text-danger"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredItems.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="py-16 text-center text-sm text-text-dim">
+                    Geen eenmalige taken gevonden
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* ─── Doorlopende verplichtingen ─── */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-base font-semibold flex items-center gap-2">
+            <Repeat size={15} className="text-violet-400" />
+            Doorlopende verplichtingen
+            <span className="rounded-full bg-surface-light px-2 py-0.5 text-xs font-normal text-text-dim">{recurringItems.length}</span>
+          </h2>
+          <button
+            onClick={() => openDialog(undefined, 'recurring')}
+            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-muted hover:bg-surface-light hover:text-text-main"
+          >
+            <Plus size={14} />
+            Doorlopend
+          </button>
+        </div>
+        <p className="text-xs text-text-dim">Cadensen en retainers die nooit "klaar" zijn. Doen niet mee in de ICE-score.</p>
+        <div className="rounded-xl border border-border bg-surface/30 overflow-hidden">
+          {filteredRecurring.length > 0
+            ? filteredRecurring.map(renderParkedRow)
+            : <p className="py-8 text-center text-sm text-text-dim">Geen doorlopende verplichtingen</p>}
+        </div>
+      </section>
+
+      {/* ─── Wachtend / geblokkeerd ─── */}
+      {waitingItems.length > 0 && (
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-base font-semibold flex items-center gap-2">
+              <PauseCircle size={15} className="text-amber-400" />
+              Wachtend / geblokkeerd
+              <span className="rounded-full bg-surface-light px-2 py-0.5 text-xs font-normal text-text-dim">{waitingItems.length}</span>
+            </h2>
+          </div>
+          <p className="text-xs text-text-dim">Geparkeerd: wacht op iets externs. Geen actieve prioriteit tot het gedeblokkeerd is.</p>
+          <div className="rounded-xl border border-border bg-surface/30 overflow-hidden">
+            {filteredWaiting.length > 0
+              ? filteredWaiting.map(renderParkedRow)
+              : <p className="py-8 text-center text-sm text-text-dim">Niets gevonden</p>}
+          </div>
+        </section>
+      )}
 
       {/* Add/Edit Dialog */}
       {dialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDialogOpen(false)} />
-          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-surface shadow-2xl shadow-black/30">
+          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-surface shadow-2xl shadow-black/30 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h2 className="font-display text-lg font-semibold">{editingItem ? 'Idee bewerken' : 'Nieuw idee'}</h2>
+              <h2 className="font-display text-lg font-semibold">{editingItem ? 'Item bewerken' : 'Nieuw item'}</h2>
               <button onClick={() => setDialogOpen(false)} className="rounded-lg p-1.5 text-text-muted hover:bg-surface-light">
                 <span className="sr-only">Sluiten</span>✕
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* Type */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-text-muted">Type</label>
+                <div className="flex gap-2">
+                  {(Object.entries(ICE_KIND_CONFIG) as [ICEKind, typeof ICE_KIND_CONFIG[ICEKind]][]).map(([key, config]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setForm({ ...form, kind: key })}
+                      className={cn(
+                        'flex-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all',
+                        form.kind === key
+                          ? `${config.bgColor} border-current`
+                          : 'border-border bg-surface-light text-text-muted hover:bg-surface-hover'
+                      )}
+                    >
+                      {config.label}
+                    </button>
+                  ))}
+                </div>
+                {form.kind !== 'oneoff' && (
+                  <p className="mt-1.5 text-[11px] text-text-dim">
+                    {form.kind === 'recurring'
+                      ? 'Doorlopende verplichting: doet niet mee in de ICE-score.'
+                      : 'Geblokkeerd/wachtend op extern: geparkeerd, geen actieve prioriteit.'}
+                  </p>
+                )}
+              </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-text-muted">Titel *</label>
                 <input
@@ -384,7 +553,7 @@ export function ICEPage() {
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   className="w-full rounded-lg border border-border bg-surface-light px-3 py-2 text-sm text-text-main placeholder:text-text-dim focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="Idee titel"
+                  placeholder="Titel"
                   required
                 />
               </div>
@@ -395,7 +564,7 @@ export function ICEPage() {
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
                   className="w-full rounded-lg border border-border bg-surface-light px-3 py-2 text-sm text-text-main placeholder:text-text-dim focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-                  placeholder="Beschrijf het idee..."
+                  placeholder="Beschrijf het item..."
                 />
               </div>
               <div>
@@ -418,29 +587,66 @@ export function ICEPage() {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { key: 'impact' as const, label: 'Impact', color: 'text-primary' },
-                  { key: 'importance' as const, label: 'Importance', color: 'text-accent' },
-                  { key: 'time_estimate' as const, label: 'Time', color: 'text-blue-400' },
-                  { key: 'difficulty' as const, label: 'Difficulty', color: 'text-purple-400' },
-                ].map(({ key, label, color }) => (
-                  <div key={key}>
-                    <label className={cn('mb-1 block text-sm font-medium', color)}>{label}: {form[key]}</label>
+
+              {form.kind === 'recurring' ? (
+                /* Doorlopend: cadans + volgende keer i.p.v. score-sliders */
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-violet-400">Cadans</label>
                     <input
-                      type="range"
-                      min={1}
-                      max={10}
-                      value={form[key]}
-                      onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })}
-                      className="w-full accent-primary"
+                      type="text"
+                      value={form.cadence}
+                      onChange={(e) => setForm({ ...form, cadence: e.target.value })}
+                      className="w-full rounded-lg border border-border bg-surface-light px-3 py-2 text-sm text-text-main placeholder:text-text-dim focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="bv. Elke 2 weken (dinsdag)"
                     />
-                    <div className="flex justify-between text-[10px] text-text-dim">
-                      <span>1</span><span>5</span><span>10</span>
-                    </div>
                   </div>
-                ))}
-              </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-text-muted">Volgende keer</label>
+                    <input
+                      type="date"
+                      value={form.next_due}
+                      onChange={(e) => setForm({ ...form, next_due: e.target.value })}
+                      className="w-full rounded-lg border border-border bg-surface-light px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* Eenmalig / wachtend: score-sliders */
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { key: 'impact' as const, label: 'Impact', color: 'text-primary' },
+                      { key: 'importance' as const, label: 'Importance', color: 'text-accent' },
+                      { key: 'time_estimate' as const, label: 'Time', color: 'text-blue-400' },
+                      { key: 'difficulty' as const, label: 'Difficulty', color: 'text-purple-400' },
+                    ].map(({ key, label, color }) => (
+                      <div key={key}>
+                        <label className={cn('mb-1 block text-sm font-medium', color)}>{label}: {form[key]}</label>
+                        <input
+                          type="range"
+                          min={1}
+                          max={10}
+                          value={form[key]}
+                          onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })}
+                          className="w-full accent-primary"
+                        />
+                        <div className="flex justify-between text-[10px] text-text-dim">
+                          <span>1</span><span>5</span><span>10</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Preview score */}
+                  <div className="rounded-lg bg-surface-light px-4 py-3 text-center">
+                    <span className="text-xs text-text-dim">Geschatte score: </span>
+                    <span className="font-display text-lg font-bold text-primary">
+                      {((form.impact * form.importance) / Math.max(Math.sqrt(form.time_estimate * form.difficulty), 1) * 10).toFixed(1)}
+                    </span>
+                  </div>
+                </>
+              )}
+
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-text-muted">Status</label>
                 <div className="flex gap-2">
@@ -460,13 +666,6 @@ export function ICEPage() {
                     </button>
                   ))}
                 </div>
-              </div>
-              {/* Preview score */}
-              <div className="rounded-lg bg-surface-light px-4 py-3 text-center">
-                <span className="text-xs text-text-dim">Geschatte score: </span>
-                <span className="font-display text-lg font-bold text-primary">
-                  {((form.impact * form.importance) / Math.max(Math.sqrt(form.time_estimate * form.difficulty), 1) * 10).toFixed(1)}
-                </span>
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setDialogOpen(false)} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-muted hover:bg-surface-light">

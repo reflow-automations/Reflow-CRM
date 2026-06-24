@@ -21,7 +21,9 @@ export function DashboardPage() {
     .sort((a, b) => new Date(a.next_follow_up!).getTime() - new Date(b.next_follow_up!).getTime())
     .slice(0, 8)
 
-  const topICEItems = iceItems.filter((i) => i.status !== 'done').slice(0, 5)
+  // Alleen eenmalige, scorebare taken: doorlopende verplichtingen en wachtende items
+  // horen niet in de prioriteiten-top.
+  const topICEItems = iceItems.filter((i) => i.kind === 'oneoff' && i.status !== 'done').slice(0, 5)
 
   const pipelineValue = contacts
     .filter((c) => c.status === 'negotiation' || c.status === 'contacted')

@@ -1,4 +1,4 @@
-import type { ICEStatus, ICEBucket } from '@/lib/constants'
+import type { ICEStatus, ICEBucket, ICEKind } from '@/lib/constants'
 
 export interface ICEItem {
   id: string
@@ -12,6 +12,9 @@ export interface ICEItem {
   difficulty: number
   priority_score: number
   status: ICEStatus
+  kind: ICEKind
+  cadence: string | null
+  next_due: string | null
   position: number
   created_at: string
   updated_at: string
@@ -26,6 +29,9 @@ export interface ICEFormData {
   time_estimate: number
   difficulty: number
   status: ICEStatus
+  kind: ICEKind
+  cadence: string
+  next_due: string
 }
 
 export const EMPTY_ICE_FORM: ICEFormData = {
@@ -37,4 +43,7 @@ export const EMPTY_ICE_FORM: ICEFormData = {
   time_estimate: 5,
   difficulty: 5,
   status: 'todo',
+  kind: 'oneoff',
+  cadence: '',
+  next_due: '',
 }

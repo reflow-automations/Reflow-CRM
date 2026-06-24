@@ -2,6 +2,7 @@ export type ContactStatus = 'won' | 'samenwerkings_partners' | 'negotiation' | '
 export type ContactPriority = 'high' | 'normal' | 'low'
 export type ContactSource = 'warm_netwerk' | 'netwerk_event' | 'bni' | 'overig_koud' | 'zelf_contact' | 'reflow_outreach'
 export type ICEStatus = 'todo' | 'doing' | 'done'
+export type ICEKind = 'oneoff' | 'recurring' | 'waiting'
 export type ICEBucket =
   | 'thinking' | 'creating' | 'communicating' | 'analyzing'
   | 'automating' | 'other' | 'strategy'
@@ -37,6 +38,15 @@ export const ICE_STATUS_CONFIG: Record<ICEStatus, { label: string; color: string
   todo:  { label: 'To do',  color: 'text-gray-400',   bgColor: 'bg-gray-500/15 text-gray-400' },
   doing: { label: 'Doing',  color: 'text-blue-400',   bgColor: 'bg-blue-500/15 text-blue-400' },
   done:  { label: 'Done',   color: 'text-green-400',  bgColor: 'bg-green-500/15 text-green-400' },
+}
+
+// Soort werk. Alleen 'oneoff' doet mee in de ICE-scoring/sortering.
+// 'recurring' (doorlopende verplichting/cadens) en 'waiting' (geblokkeerd/wachtend op
+// extern) worden apart getoond en krijgen geen prioriteits-ranking.
+export const ICE_KIND_CONFIG: Record<ICEKind, { label: string; color: string; bgColor: string }> = {
+  oneoff:    { label: 'Eenmalig',   color: 'text-sky-400',    bgColor: 'bg-sky-500/15 text-sky-400' },
+  recurring: { label: 'Doorlopend', color: 'text-violet-400', bgColor: 'bg-violet-500/15 text-violet-400' },
+  waiting:   { label: 'Wachtend',   color: 'text-amber-400',  bgColor: 'bg-amber-500/15 text-amber-400' },
 }
 
 export const ICE_BUCKET_CONFIG: Record<ICEBucket, { label: string; color: string; bgColor: string }> = {

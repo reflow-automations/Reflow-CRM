@@ -34,6 +34,8 @@ export function useCreateICEItem() {
           ...data,
           user_id: user!.id,
           description: data.description || null,
+          cadence: data.cadence || null,
+          next_due: data.next_due || null,
         })
         .select()
         .single()
@@ -52,9 +54,13 @@ export function useUpdateICEItem() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: Partial<ICEItem> & { id: string }) => {
+      const patch: Record<string, unknown> = { ...data, updated_at: new Date().toISOString() }
+      // Lege tekstvelden naar null (date-kolom next_due accepteert geen lege string).
+      if (patch.cadence === '') patch.cadence = null
+      if (patch.next_due === '') patch.next_due = null
       const { data: item, error } = await supabase
         .from('ice_items')
-        .update({ ...data, updated_at: new Date().toISOString() })
+        .update(patch)
         .eq('id', id)
         .select()
         .single()

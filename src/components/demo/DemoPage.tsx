@@ -254,7 +254,7 @@ function DemoDashboard({ contacts, iceItems }: { contacts: Contact[]; iceItems: 
     .filter((c) => c.next_follow_up && !isOverdue(c.next_follow_up))
     .sort((a, b) => new Date(a.next_follow_up!).getTime() - new Date(b.next_follow_up!).getTime())
     .slice(0, 8)
-  const topICEItems = iceItems.filter((i) => i.status !== 'done').slice(0, 5)
+  const topICEItems = iceItems.filter((i) => i.kind === 'oneoff' && i.status !== 'done').slice(0, 5)
 
   const pipelineValue = contacts
     .filter((c) => c.status === 'negotiation' || c.status === 'contacted')
